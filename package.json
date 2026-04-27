@@ -1,0 +1,13 @@
+{
+  "name": "votechain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:supabase": "node scripts/test-supabase-connection.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "dotenv": "^16.4.5"
+  }
+}
