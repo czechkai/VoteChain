@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidacy Filing | VoteChain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: { colors: { navy: '#0A1F44', royal: '#1E3A8A', gold: '#FFC107' } }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .file-input-hidden { display: none; }
+    </style>
+</head>
+<body class="pb-20">
+    <?php $role = 'candidate'; $activePage = 'filing'; include '../includes/sidebar.php'; ?>
+
+    <header class="h-20 bg-white border-b sticky top-0 z-30 flex items-center justify-between px-8 lg:ml-72">
+        <h2 class="text-xl font-black text-navy">Filing of Candidacy</h2>
+        <div class="flex items-center gap-2 text-xs font-bold text-amber-500 bg-amber-50 px-4 py-2 rounded-full border border-amber-100">
+            <i class="fa-solid fa-circle-notch animate-spin"></i> UNDER REVIEW
+        </div>
+    </header>
+
+    <main class="lg:ml-72 p-8 max-w-5xl mx-auto space-y-10">
+        <!-- Requirements Section -->
+        <div class="bg-gradient-to-b from-navy to-royal p-12 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-full opacity-5">
+                <i class="fa-solid fa-file-lines absolute top-8 right-8 text-[200px]"></i>
+            </div>
+            <div class="relative z-10">
+                <h2 class="text-4xl font-black mb-2">REQUIREMENTS</h2>
+                <p class="text-gold text-lg font-extrabold mb-8">FOR FILING</p>
+                
+                <div class="space-y-4">
+                    <div class="flex items-start gap-4 group">
+                        <div class="w-6 h-6 rounded-full bg-gold/20 border-2 border-gold flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-gold/40 transition">
+                            <i class="fa-solid fa-check text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg">Certificate of Candidacy</p>
+                            <p class="text-white/60 text-sm">Official nomination document</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 group">
+                        <div class="w-6 h-6 rounded-full bg-gold/20 border-2 border-gold flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-gold/40 transition">
+                            <i class="fa-solid fa-check text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg">Certificate of Registration</p>
+                            <p class="text-white/60 text-sm">Proof of enrollment for the current year</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 group">
+                        <div class="w-6 h-6 rounded-full bg-gold/20 border-2 border-gold flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-gold/40 transition">
+                            <i class="fa-solid fa-check text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg">Report of Grades – 2nd Semester, A.Y. 2024–2025</p>
+                            <p class="text-white/60 text-sm">Academic records showing current semester performance</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 group">
+                        <div class="w-6 h-6 rounded-full bg-gold/20 border-2 border-gold flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-gold/40 transition">
+                            <i class="fa-solid fa-check text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg">Certificate of Good Moral Character</p>
+                            <p class="text-white/60 text-sm">Character verification from school records</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 group">
+                        <div class="w-6 h-6 rounded-full bg-gold/20 border-2 border-gold flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-gold/40 transition">
+                            <i class="fa-solid fa-check text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg">Recommendation Letter</p>
+                            <p class="text-white/60 text-sm">Support letter from a faculty member or department</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filing Status Box -->
+        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+            <div class="mb-6">
+                <h3 class="text-2xl font-extrabold text-navy mb-2">Filing Progress</h3>
+                <p class="text-slate-500 text-sm">Upload all required documents to complete your candidacy filing.</p>
+            </div>
+            <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden mb-4">
+                <div id="progressBar" class="bg-gradient-to-r from-royal to-gold h-full w-[40%]" style="transition: width 0.5s ease-in-out"></div>
+            </div>
+            <p class="text-sm font-bold text-slate-600"><span id="uploadedCount">2</span> of 5 Documents Uploaded</p>
+        </div>
+
+        <!-- Document Upload Grid -->
+        <form id="filingForm" class="space-y-6">
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Certificate of Candidacy -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-blue-50 text-royal rounded-2xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-id-card"></i>
+                        </div>
+                        <span id="cert-candidacy-status" class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg hidden">UPLOADED</span>
+                        <span id="cert-candidacy-pending" class="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-lg">PENDING</span>
+                    </div>
+                    <h4 class="font-bold text-navy mb-2">Certificate of Candidacy</h4>
+                    <p class="text-xs text-slate-500 mb-4 flex-1">Official nomination document confirming your candidacy status.</p>
+                    <label class="cursor-pointer">
+                        <input type="file" id="cert-candidacy" name="cert_candidacy" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'cert-candidacy')">
+                        <div class="w-full py-2 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Choose File
+                        </div>
+                    </label>
+                    <p id="cert-candidacy-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
+                </div>
+
+                <!-- Certificate of Registration -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-green-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <span id="cert-registration-status" class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg hidden">UPLOADED</span>
+                        <span id="cert-registration-pending" class="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-lg">PENDING</span>
+                    </div>
+                    <h4 class="font-bold text-navy mb-2">Certificate of Registration</h4>
+                    <p class="text-xs text-slate-500 mb-4 flex-1">Proof of current semester enrollment status.</p>
+                    <label class="cursor-pointer">
+                        <input type="file" id="cert-registration" name="cert_registration" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'cert-registration')">
+                        <div class="w-full py-2 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Choose File
+                        </div>
+                    </label>
+                    <p id="cert-registration-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
+                </div>
+
+                <!-- Report of Grades -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-chart-bar"></i>
+                        </div>
+                        <span id="report-grades-status" class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg hidden">UPLOADED</span>
+                        <span id="report-grades-pending" class="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-lg">PENDING</span>
+                    </div>
+                    <h4 class="font-bold text-navy mb-2">Report of Grades</h4>
+                    <p class="text-xs text-slate-500 mb-4 flex-1">Academic records for 2nd Semester, A.Y. 2024–2025.</p>
+                    <label class="cursor-pointer">
+                        <input type="file" id="report-grades" name="report_grades" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'report-grades')">
+                        <div class="w-full py-2 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Choose File
+                        </div>
+                    </label>
+                    <p id="report-grades-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
+                </div>
+
+                <!-- Certificate of Good Moral Character -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <span id="good-moral-status" class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg hidden">UPLOADED</span>
+                        <span id="good-moral-pending" class="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-lg">PENDING</span>
+                    </div>
+                    <h4 class="font-bold text-navy mb-2">Good Moral Character</h4>
+                    <p class="text-xs text-slate-500 mb-4 flex-1">Character verification certificate from school records.</p>
+                    <label class="cursor-pointer">
+                        <input type="file" id="good-moral" name="good_moral" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'good-moral')">
+                        <div class="w-full py-2 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Choose File
+                        </div>
+                    </label>
+                    <p id="good-moral-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
+                </div>
+
+                <!-- Recommendation Letter -->
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-amber-100 border-dashed hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <span id="recommendation-status" class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg hidden">UPLOADED</span>
+                        <span id="recommendation-pending" class="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-lg">PENDING</span>
+                    </div>
+                    <h4 class="font-bold text-navy mb-2">Recommendation Letter</h4>
+                    <p class="text-xs text-slate-500 mb-4 flex-1">Support letter from a faculty member or department head.</p>
+                    <label class="cursor-pointer">
+                        <input type="file" id="recommendation" name="recommendation" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'recommendation')">
+                        <div class="w-full py-3 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload File
+                        </div>
+                    </label>
+                    <p id="recommendation-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex gap-4 justify-end">
+                <button type="reset" class="px-8 py-3 bg-slate-100 text-navy rounded-xl font-bold hover:bg-slate-200 transition">
+                    Clear All
+                </button>
+                <button type="submit" class="px-8 py-3 bg-navy text-white rounded-xl font-bold hover:bg-royal transition">
+                    <i class="fa-solid fa-arrow-right mr-2"></i>Submit Filing
+                </button>
+            </div>
+        </form>
+
+        <!-- Timeline Section -->
+        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200">
+            <h3 class="text-2xl font-extrabold text-navy mb-8">Election Timeline</h3>
+            <div class="space-y-6">
+                <div class="flex gap-6">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 bg-navy text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <div class="w-1 h-16 bg-slate-200 my-2"></div>
+                    </div>
+                    <div class="pb-6">
+                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">April 29 - May 5</p>
+                        <h4 class="text-lg font-bold text-navy mt-1">Application Period</h4>
+                        <p class="text-slate-600 text-sm mt-2">Filing and screening of candidates applications</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-6">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 bg-royal text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            <i class="fa-solid fa-megaphone"></i>
+                        </div>
+                        <div class="w-1 h-16 bg-slate-200 my-2"></div>
+                    </div>
+                    <div class="pb-6">
+                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">May 6 - May 13</p>
+                        <h4 class="text-lg font-bold text-navy mt-1">Campaign Period</h4>
+                        <p class="text-slate-600 text-sm mt-2">Candidates present platforms and campaign to students</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-6">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            <i class="fa-solid fa-vote-yea"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">May 14</p>
+                        <h4 class="text-lg font-bold text-navy mt-1">Election Day</h4>
+                        <p class="text-slate-600 text-sm mt-2">Students cast their votes for university leaders</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function handleFileUpload(input, docType) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const filenameEl = document.getElementById(`${docType}-filename`);
+            filenameEl.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            filenameEl.classList.remove('hidden');
+
+            document.getElementById(`${docType}-pending`)?.classList.add('hidden');
+            document.getElementById(`${docType}-status`)?.classList.remove('hidden');
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const docs = ['cert-candidacy', 'cert-registration', 'report-grades', 'good-moral', 'recommendation'];
+            const uploaded = docs.filter(doc => document.getElementById(doc).files.length > 0).length;
+            
+            document.getElementById('uploadedCount').textContent = uploaded;
+            const percentage = (uploaded / 5) * 100;
+            document.getElementById('progressBar').style.width = percentage + '%';
+        }
+
+        document.getElementById('filingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const docs = ['cert-candidacy', 'cert-registration', 'report-grades', 'good-moral', 'recommendation'];
+            const uploaded = docs.filter(doc => document.getElementById(doc).files.length > 0).length;
+            
+            if (uploaded === 0) {
+                alert('Please upload at least one document');
+                return;
+            }
+
+            alert(`Filing submitted with ${uploaded} document(s). Your application is under review.`);
+        });
+
+        window.addEventListener('load', updateProgress);
+    </script>
+
+</body>
+</html>
