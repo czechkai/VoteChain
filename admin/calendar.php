@@ -1,4 +1,10 @@
-<?php $role = 'admin'; $activePage = 'calendar'; $pageTitle = 'Election Calendar'; ?>
+<?php
+require_once '../includes/config.php';
+requireRole('admin');
+$role = 'admin';
+$activePage = 'calendar';
+$pageTitle = 'Election Calendar';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

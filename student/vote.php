@@ -1,3 +1,9 @@
+<?php
+require_once '../includes/config.php';
+requireRole('student');
+$role = 'student';
+$activePage = 'vote';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

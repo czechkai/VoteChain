@@ -1,3 +1,9 @@
+<?php
+require_once '../includes/config.php';
+requireRole('student');
+$role = 'student';
+$activePage = 'dashboard';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +40,7 @@
     </style>
 </head>
 <body class="flex min-h-screen">
-    <?php $role = 'student'; $activePage = 'dashboard'; include '../includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="flex-1 lg:ml-72 p-4 md:p-8">

@@ -1,4 +1,10 @@
-<?php $role = 'admin'; $activePage = 'announcements'; $pageTitle = 'Announcements'; ?>
+<?php
+require_once '../includes/config.php';
+requireRole('admin');
+$role = 'admin';
+$activePage = 'announcements';
+$pageTitle = 'Announcements';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

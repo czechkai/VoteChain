@@ -34,9 +34,9 @@ $currentYear = date('Y');
             <div>
                 <h4 class="text-sm font-black uppercase tracking-[0.1em] text-gold mb-6">Quick Links</h4>
                 <ul class="space-y-3">
-                    <li><a href="/vc/student/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Student Portal</a></li>
-                    <li><a href="/vc/candidate/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Candidate Hub</a></li>
-                    <li><a href="/vc/admin/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Admin Panel</a></li>
+                    <li><a href="/votechain/student/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Student Portal</a></li>
+                    <li><a href="/votechain/candidate/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Candidate Hub</a></li>
+                    <li><a href="/votechain/admin/dashboard.php" class="text-white/70 hover:text-gold text-sm transition-colors">Admin Panel</a></li>
                     <li><a href="#" class="text-white/70 hover:text-gold text-sm transition-colors">Contact Us</a></li>
                 </ul>
             </div>

@@ -27,9 +27,8 @@ if (!$pdo) {
 }
 
 try {
-    if (strpos($identifier, '@') !== false) {
-        $profile = getProfileByEmail($pdo, $identifier);
-    } else {
+    $profile = getProfileByEmail($pdo, $identifier);
+    if (!$profile) {
         $profile = getProfileByStudentId($pdo, $identifier);
     }
 
@@ -52,11 +51,20 @@ try {
     $_SESSION['role'] = $profile['role'];
     $_SESSION['student_id'] = $profile['student_id'];
 
+    $role = $profile['role'] ?? 'student';
+    $redirect = '../student/dashboard.php';
+
+    if ($role === 'admin') {
+        $redirect = '../admin/dashboard.php';
+    } elseif ($role === 'candidate') {
+        $redirect = '../candidate/dashboard.php';
+    }
+
     http_response_code(200);
     echo json_encode([
         'success' => true,
         'message' => 'Login successful! Redirecting to dashboard...',
-        'redirect' => '../student/dashboard.php'
+        'redirect' => $redirect
     ]);
 } catch (Exception $e) {
     error_log('Login error: ' . $e->getMessage());

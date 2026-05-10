@@ -1,3 +1,4 @@
+<?php $showLogout = isset($_GET['logout']) && $_GET['logout'] === '1'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -256,6 +257,56 @@
             </div>
         </div>
     </section>
+
+    <!-- Logout Status Modal -->
+    <div id="logoutModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-[200]">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 text-green-700">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-navy">Logout successful</h3>
+                        <p class="text-slate-500 text-sm mt-1">You have been signed out.</p>
+                    </div>
+                </div>
+                <button type="button" id="logoutClose" class="text-slate-400 hover:text-navy">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="logoutOk" class="px-6 py-3 bg-navy text-white rounded-2xl font-bold hover:bg-royal transition-all">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const showLogoutModal = <?php echo $showLogout ? 'true' : 'false'; ?>;
+        const logoutModal = document.getElementById('logoutModal');
+        const logoutClose = document.getElementById('logoutClose');
+        const logoutOk = document.getElementById('logoutOk');
+
+        function closeLogoutModal() {
+            logoutModal.classList.add('hidden');
+            logoutModal.classList.remove('flex');
+            if (window.history.replaceState) {
+                const cleanUrl = window.location.href.replace(/\?logout=1$/, '');
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        }
+
+        if (showLogoutModal) {
+            logoutModal.classList.remove('hidden');
+            logoutModal.classList.add('flex');
+        }
+
+        logoutClose?.addEventListener('click', closeLogoutModal);
+        logoutOk?.addEventListener('click', closeLogoutModal);
+        logoutModal?.addEventListener('click', (e) => {
+            if (e.target === logoutModal) closeLogoutModal();
+        });
+    </script>
 
     <!-- COMELEC Officers -->
     <section class="py-24 bg-navy text-white">

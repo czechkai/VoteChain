@@ -1,3 +1,9 @@
+<?php
+require_once '../includes/config.php';
+requireRole('candidate');
+$role = 'candidate';
+$activePage = 'dashboard';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,7 +28,7 @@
     </style>
 </head>
 <body class="min-h-screen">
-    <?php $role = 'candidate'; $activePage = 'dashboard'; include '../includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
 
     <header class="h-20 bg-white border-b sticky top-0 z-30 flex items-center justify-between px-8 lg:ml-72">
         <div>

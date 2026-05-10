@@ -70,15 +70,15 @@ $pageTitle = $pageTitle ?? 'Dashboard';
                         <p class="text-slate-600 text-xs">Student Account</p>
                     <?php endif; ?>
                 </div>
-                <a href="/vc/profile.php" class="flex items-center gap-3 px-3 py-2 rounded-lg text-navy hover:bg-slate-50 text-sm font-semibold transition-colors">
+                <a href="/votechain/profile.php" class="flex items-center gap-3 px-3 py-2 rounded-lg text-navy hover:bg-slate-50 text-sm font-semibold transition-colors">
                     <i class="fa-solid fa-user"></i> My Profile
                 </a>
-                <a href="/vc/settings.php" class="flex items-center gap-3 px-3 py-2 rounded-lg text-navy hover:bg-slate-50 text-sm font-semibold transition-colors">
+                <a href="/votechain/settings.php" class="flex items-center gap-3 px-3 py-2 rounded-lg text-navy hover:bg-slate-50 text-sm font-semibold transition-colors">
                     <i class="fa-solid fa-gear"></i> Settings
                 </a>
-                <button class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 text-sm font-semibold transition-colors">
+                <a href="/votechain/auth/logout.php" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 text-sm font-semibold transition-colors">
                     <i class="fa-solid fa-sign-out-alt"></i> Logout
-                </button>
+                </a>
             </div>
         </div>
     </div>

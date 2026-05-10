@@ -1,4 +1,10 @@
-<?php $role = 'admin'; $activePage = 'election'; $pageTitle = 'Election Management'; ?>
+<?php
+require_once '../includes/config.php';
+requireRole('admin');
+$role = 'admin';
+$activePage = 'election';
+$pageTitle = 'Election Management';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -47,23 +47,23 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
 
             <?php if ($role === 'admin'): ?>
                 <!-- Admin Navigation -->
-                <a href="/vc/admin/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-gauge-high w-5"></i>
                     <span>Dashboard</span>
                 </a>
 
-                <a href="/vc/admin/candidate.php" class="<?php echo $activePage === 'candidate' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/candidate.php" class="<?php echo $activePage === 'candidate' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-users-gear w-5"></i>
                     <span>Candidate Apps</span>
                     <span class="ml-auto bg-gold text-navy text-[10px] px-2 py-0.5 rounded-full font-black">12</span>
                 </a>
 
-                <a href="/vc/admin/election.php" class="<?php echo $activePage === 'election' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/election.php" class="<?php echo $activePage === 'election' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-box-archive w-5"></i>
                     <span>Elections</span>
                 </a>
 
-                <a href="/vc/admin/announcements.php" class="<?php echo $activePage === 'announcements' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/announcements.php" class="<?php echo $activePage === 'announcements' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-bullhorn w-5"></i>
                     <span>Announcements</span>
                 </a>
@@ -71,56 +71,56 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
                 <div class="h-px bg-white/10 my-4 mx-4"></div>
                 <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-4 px-4">Reports</p>
 
-                <a href="/vc/admin/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-chart-pie w-5"></i>
                     <span>Live Results</span>
                 </a>
 
-                <a href="/vc/admin/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-calendar-days w-5"></i>
                     <span>Calendar</span>
                 </a>
 
             <?php elseif ($role === 'candidate'): ?>
                 <!-- Candidate Navigation -->
-                <a href="/vc/candidate/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/candidate/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-chart-pie w-5"></i>
                     <span>Dashboard</span>
                 </a>
 
-                <a href="/vc/candidate/campaign.php" class="<?php echo $activePage === 'campaign' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/candidate/campaign.php" class="<?php echo $activePage === 'campaign' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-megaphone w-5"></i>
                     <span>Manage Campaign</span>
                 </a>
 
-                <a href="/vc/candidate/filing.php" class="<?php echo $activePage === 'filing' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/candidate/filing.php" class="<?php echo $activePage === 'filing' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-file-check w-5"></i>
                     <span>Filing Status</span>
                 </a>
 
             <?php else: ?>
                 <!-- Student Navigation -->
-                <a href="/vc/student/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/student/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-chart-pie w-5"></i>
                     <span>Dashboard</span>
                 </a>
 
-                <a href="/vc/student/newsfeed.php" class="<?php echo $activePage === 'newsfeed' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/student/newsfeed.php" class="<?php echo $activePage === 'newsfeed' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-newspaper w-5"></i>
                     <span>News Feed</span>
                 </a>
 
-                <a href="/vc/student/vote.php" class="<?php echo $activePage === 'vote' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/student/vote.php" class="<?php echo $activePage === 'vote' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-box-archive w-5"></i>
                     <span>Vote Now</span>
                 </a>
 
-                <a href="/vc/student/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/student/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-square-poll-vertical w-5"></i>
                     <span>Results</span>
                 </a>
 
-                <a href="/vc/student/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/student/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-calendar-days w-5"></i>
                     <span>Calendar</span>
                 </a>
@@ -131,21 +131,21 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
         <!-- Role Switching / Profile -->
         <div class="border-t border-white/10 pt-6 mt-6">
             <?php if ($role === 'candidate'): ?>
-                <a href="/vc/student/dashboard.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
+                <a href="/votechain/student/dashboard.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
                     <i class="fa-solid fa-arrow-right-from-bracket w-5"></i>
                     <span class="text-sm">Switch to Student</span>
                 </a>
             <?php elseif ($role === 'student'): ?>
-                <a href="/vc/candidate/dashboard.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
+                <a href="/votechain/student/switch_to_candidate.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
                     <i class="fa-solid fa-arrow-right-to-bracket w-5"></i>
                     <span class="text-sm">Switch to Candidate</span>
                 </a>
             <?php endif; ?>
 
-            <button class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 font-bold transition-all group">
+            <a href="/votechain/auth/logout.php" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 font-bold transition-all group">
                 <i class="fa-solid fa-arrow-right-from-bracket w-5"></i>
                 <span>Logout</span>
-            </button>
+            </a>
         </div>
     </div>
 </aside>

@@ -1,3 +1,9 @@
+<?php
+require_once '../includes/config.php';
+requireRole('candidate');
+$role = 'candidate';
+$activePage = 'campaign';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

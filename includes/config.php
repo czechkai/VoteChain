@@ -86,6 +86,24 @@ function isLoggedIn() {
 }
 
 /**
+ * Require login and specific role(s)
+ */
+function requireRole($roles) {
+    if (!isLoggedIn()) {
+        header('Location: ../auth/login.php');
+        exit;
+    }
+
+    $allowed = is_array($roles) ? $roles : [$roles];
+    $currentRole = $_SESSION['role'] ?? null;
+
+    if (!$currentRole || !in_array($currentRole, $allowed, true)) {
+        header('Location: ../auth/login.php');
+        exit;
+    }
+}
+
+/**
  * Get profile by email
  */
 function getProfileByEmail($pdo, $email) {

@@ -1,4 +1,10 @@
-<?php $role = 'admin'; $activePage = 'results'; $pageTitle = 'Live Results'; ?>
+<?php
+require_once '../includes/config.php';
+requireRole('admin');
+$role = 'admin';
+$activePage = 'results';
+$pageTitle = 'Live Results';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
