@@ -77,7 +77,7 @@ $activePage = 'vote';
                     </div>
                 </div>
                 <div class="p-8 pt-0">
-                    <a href="ballot_usc.php" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
+                    <a href="ballot.php?scope=university" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
                         Proceed to Ballot
                         <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                     </a>
@@ -113,7 +113,7 @@ $activePage = 'vote';
                     </div>
                 </div>
                 <div class="p-8 pt-0">
-                    <a href="ballot_facet.php" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
+                    <a href="ballot.php?scope=faculty" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
                         Proceed to Ballot
                         <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                     </a>
@@ -173,8 +173,8 @@ $activePage = 'vote';
         <div class="w-12 h-12 bg-navy rounded-full -mt-10 flex items-center justify-center text-white shadow-xl border-4 border-white">
             <i class="fa-solid fa-box-archive"></i>
         </div>
-        <a href="#" class="text-slate-400"><i class="fa-solid fa-square-poll-vertical text-xl"></i></a>
-        <a href="#" class="text-slate-400"><i class="fa-solid fa-user-gear text-xl"></i></a>
+        <a href="results.php" class="text-slate-400"><i class="fa-solid fa-square-poll-vertical text-xl"></i></a>
+        <a href="profile.php" class="text-slate-400"><i class="fa-solid fa-user-gear text-xl"></i></a>
     </div>
 
 </body>

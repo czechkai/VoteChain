@@ -3,6 +3,21 @@ require_once '../includes/config.php';
 requireRole('student');
 $role = 'student';
 $activePage = 'dashboard';
+
+$activeElections = $pdo ? getActiveElections($pdo) : [];
+$voterProfileId = $_SESSION['profile_id'] ?? null;
+$electionVoteStatus = [];
+
+if ($pdo && $voterProfileId && $activeElections) {
+    $voteCheckStmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM votes WHERE voter_profile_id = ? AND election_id = ?"
+    );
+
+    foreach ($activeElections as $election) {
+        $voteCheckStmt->execute([$voterProfileId, $election['id']]);
+        $electionVoteStatus[$election['id']] = (int) $voteCheckStmt->fetchColumn() > 0;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,7 +92,7 @@ $activePage = 'dashboard';
                     <span class="text-[10px] font-bold text-green-500 bg-green-50 px-2 py-1 rounded-lg uppercase">Active</span>
                 </div>
                 <h3 class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-1">Active Elections</h3>
-                <p class="text-2xl font-extrabold text-navy">02</p>
+                <p class="text-2xl font-extrabold text-navy"><?php echo count($activeElections); ?></p>
             </div>
 
             <div class="glass-card p-6 rounded-[2rem] custom-shadow">
@@ -139,43 +154,50 @@ $activePage = 'dashboard';
                 <!-- Election Overview List -->
                 <div class="space-y-4">
                     <h3 class="text-lg font-extrabold text-navy ml-2">Available Elections</h3>
-                    
-                    <div class="group bg-white p-6 rounded-[2rem] border border-slate-100 custom-shadow hover:border-royal/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div class="flex items-center gap-5">
-                            <div class="w-16 h-16 bg-navy rounded-2xl flex items-center justify-center text-white text-2xl">
-                                <i class="fa-solid fa-building-columns"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-extrabold text-navy">University Student Government</h4>
-                                <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">2026-2027 General Election</p>
-                                <div class="flex gap-2 mt-2">
-                                    <span class="text-[10px] font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Ongoing</span>
-                                    <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Blockchain Enabled</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button class="px-8 py-3 bg-navy text-white rounded-xl font-bold hover:bg-royal transition-all shadow-lg shadow-navy/20">
-                            Vote Now
-                        </button>
-                    </div>
 
-                    <div class="group bg-white p-6 rounded-[2rem] border border-slate-100 custom-shadow hover:border-royal/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 opacity-80">
-                        <div class="flex items-center gap-5">
-                            <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 text-2xl">
-                                <i class="fa-solid fa-code"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-extrabold text-navy">FACET Local Council</h4>
-                                <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Engineering & Technology Program</p>
-                                <div class="flex gap-2 mt-2">
-                                    <span class="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Starts in 2h</span>
-                                </div>
-                            </div>
+                    <?php if (!$activeElections): ?>
+                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 custom-shadow">
+                            <p class="text-sm text-slate-500 font-medium">No active elections yet.</p>
                         </div>
-                        <button disabled class="px-8 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold cursor-not-allowed">
-                            Upcoming
-                        </button>
-                    </div>
+                    <?php else: ?>
+                        <?php foreach ($activeElections as $election): ?>
+                            <?php
+                            $title = $election['title'] ?? $election['name'] ?? 'Election';
+                            $subtitle = $election['description'] ?? $election['scope'] ?? 'Active voting period';
+                            $hasVoted = $electionVoteStatus[$election['id']] ?? false;
+                            ?>
+                            <div class="group bg-white p-6 rounded-[2rem] border border-slate-100 custom-shadow hover:border-royal/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div class="flex items-center gap-5">
+                                    <div class="w-16 h-16 bg-navy rounded-2xl flex items-center justify-center text-white text-2xl">
+                                        <i class="fa-solid fa-building-columns"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-extrabold text-navy"><?php echo htmlspecialchars($title); ?></h4>
+                                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                                            <?php echo htmlspecialchars($subtitle); ?>
+                                        </p>
+                                        <div class="flex gap-2 mt-2">
+                                            <span class="text-[10px] font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Ongoing</span>
+                                            <?php if ($hasVoted): ?>
+                                                <span class="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Voted</span>
+                                            <?php else: ?>
+                                                <span class="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Not Voted</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php if ($hasVoted): ?>
+                                    <button disabled class="px-8 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold cursor-not-allowed">
+                                        Voted
+                                    </button>
+                                <?php else: ?>
+                                    <a href="ballot.php?election_id=<?php echo urlencode($election['id']); ?>" class="px-8 py-3 bg-navy text-white rounded-xl font-bold hover:bg-royal transition-all shadow-lg shadow-navy/20">
+                                        Vote Now
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
 

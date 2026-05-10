@@ -3,6 +3,27 @@ require_once '../includes/config.php';
 requireRole('candidate');
 $role = 'candidate';
 $activePage = 'filing';
+
+$activeElections = $pdo ? getActiveElections($pdo) : [];
+$positions = [];
+if ($pdo) {
+    try {
+        $posStmt = $pdo->query("SELECT id, name FROM positions ORDER BY order_index ASC");
+        $positions = $posStmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Positions fetch error: ' . $e->getMessage());
+    }
+}
+
+$alertMessage = '';
+$alertType = '';
+if (isset($_GET['success'])) {
+    $alertType = 'success';
+    $alertMessage = 'Filing submitted successfully. Please wait for admin approval.';
+} elseif (isset($_GET['error'])) {
+    $alertType = 'error';
+    $alertMessage = 'Filing failed. Please check your inputs and try again.';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -101,6 +122,11 @@ $activePage = 'filing';
 
         <!-- Filing Status Box -->
         <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+            <?php if ($alertMessage): ?>
+                <div class="mb-6 px-4 py-3 rounded-2xl text-sm font-bold <?php echo $alertType === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'; ?>">
+                    <?php echo htmlspecialchars($alertMessage); ?>
+                </div>
+            <?php endif; ?>
             <div class="mb-6">
                 <h3 class="text-2xl font-extrabold text-navy mb-2">Filing Progress</h3>
                 <p class="text-slate-500 text-sm">Upload all required documents to complete your candidacy filing.</p>
@@ -112,7 +138,34 @@ $activePage = 'filing';
         </div>
 
         <!-- Document Upload Grid -->
-        <form id="filingForm" class="space-y-6">
+        <form id="filingForm" class="space-y-6" method="POST" action="filing_handler.php" enctype="multipart/form-data">
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                <h4 class="text-lg font-extrabold text-navy mb-4">Election & Position</h4>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-extrabold text-navy uppercase tracking-widest ml-1">Election</label>
+                        <select name="election_id" required class="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-medium outline-none focus:ring-2 focus:ring-royal">
+                            <option value="" disabled selected>Select Election</option>
+                            <?php foreach ($activeElections as $election): ?>
+                                <option value="<?php echo htmlspecialchars($election['id']); ?>">
+                                    <?php echo htmlspecialchars($election['title'] ?? $election['name'] ?? 'Election'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-extrabold text-navy uppercase tracking-widest ml-1">Position</label>
+                        <select name="position_id" required class="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-medium outline-none focus:ring-2 focus:ring-royal">
+                            <option value="" disabled selected>Select Position</option>
+                            <?php foreach ($positions as $position): ?>
+                                <option value="<?php echo htmlspecialchars($position['id']); ?>">
+                                    <?php echo htmlspecialchars($position['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Certificate of Candidacy -->
                 <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
