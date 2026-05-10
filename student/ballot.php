@@ -4,6 +4,8 @@ requireRole('student');
 $role = 'student';
 $activePage = 'vote';
 
+$voterProfileId = $_SESSION['profile_id'] ?? null;
+
 $electionId = $_GET['election_id'] ?? '';
 $alertMessage = '';
 $alertType = '';

@@ -47,111 +47,50 @@ $activePage = 'vote';
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            
-            <!-- USC Election Card -->
-            <div class="election-card flex flex-col">
-                <div class="p-8 flex-1">
-                    <div class="flex justify-between items-start mb-6">
-                        <div class="w-14 h-14 bg-navy text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-navy/20">
-                            <i class="fa-solid fa-building-columns"></i>
-                        </div>
-                        <span class="status-badge bg-green-100 text-green-600">Active</span>
-                    </div>
-                    
-                    <h3 class="text-xl font-extrabold text-navy mb-2">USC General Elections</h3>
-                    <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-6">University Wide</p>
-                    
-                    <div class="space-y-4 mb-8">
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-users text-royal w-5"></i>
-                            <span class="text-sm font-semibold">12 Candidates Running</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-clock text-royal w-5"></i>
-                            <span class="text-sm font-semibold">Ends in: <span class="text-navy">12h 45m</span></span>
-                        </div>
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-shield-halved text-royal w-5"></i>
-                            <span class="text-sm font-semibold">Blockchain Verified</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-8 pt-0">
-                    <a href="ballot.php?scope=university" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
-                        Proceed to Ballot
-                        <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                    </a>
-                </div>
-            </div>
+            <?php
+            $activeElections = $pdo ? getActiveElections($pdo) : [];
+            ?>
 
-            <!-- Faculty Election Card -->
-            <div class="election-card flex flex-col">
-                <div class="p-8 flex-1">
-                    <div class="flex justify-between items-start mb-6">
-                        <div class="w-14 h-14 bg-royal text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-royal/20">
-                            <i class="fa-solid fa-microchip"></i>
-                        </div>
-                        <span class="status-badge bg-green-100 text-green-600">Active</span>
-                    </div>
-                    
-                    <h3 class="text-xl font-extrabold text-navy mb-2">FACET Council</h3>
-                    <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-6">Faculty Level</p>
-                    
-                    <div class="space-y-4 mb-8">
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-users text-royal w-5"></i>
-                            <span class="text-sm font-semibold">8 Candidates Running</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-clock text-royal w-5"></i>
-                            <span class="text-sm font-semibold">Ends in: <span class="text-navy">08h 12m</span></span>
-                        </div>
-                        <div class="flex items-center gap-3 text-slate-600">
-                            <i class="fa-solid fa-location-dot text-royal w-5"></i>
-                            <span class="text-sm font-semibold">Engineering Bldg.</span>
-                        </div>
-                    </div>
+            <?php if (!$activeElections): ?>
+                <div class="election-card p-8">
+                    <h3 class="text-lg font-extrabold text-navy mb-2">No Active Elections</h3>
+                    <p class="text-slate-500 text-sm">Please check back later.</p>
                 </div>
-                <div class="p-8 pt-0">
-                    <a href="ballot.php?scope=faculty" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
-                        Proceed to Ballot
-                        <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                    </a>
-                </div>
-            </div>
+            <?php else: ?>
+                <?php foreach ($activeElections as $election): ?>
+                    <?php
+                    $title = $election['title'] ?? $election['name'] ?? 'Election';
+                    $scope = $election['scope'] ?? $election['type'] ?? 'Active';
+                    ?>
+                    <div class="election-card flex flex-col">
+                        <div class="p-8 flex-1">
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-navy text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-navy/20">
+                                    <i class="fa-solid fa-building-columns"></i>
+                                </div>
+                                <span class="status-badge bg-green-100 text-green-600">Active</span>
+                            </div>
 
-            <!-- Program Election Card -->
-            <div class="election-card flex flex-col opacity-75 grayscale-[0.5]">
-                <div class="p-8 flex-1">
-                    <div class="flex justify-between items-start mb-6">
-                        <div class="w-14 h-14 bg-slate-200 text-slate-500 rounded-2xl flex items-center justify-center text-2xl">
-                            <i class="fa-solid fa-code"></i>
+                            <h3 class="text-xl font-extrabold text-navy mb-2"><?php echo htmlspecialchars($title); ?></h3>
+                            <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-6">
+                                <?php echo htmlspecialchars($scope); ?>
+                            </p>
+                            <div class="space-y-4 mb-8">
+                                <div class="flex items-center gap-3 text-slate-600">
+                                    <i class="fa-solid fa-shield-halved text-royal w-5"></i>
+                                    <span class="text-sm font-semibold">Blockchain Verified</span>
+                                </div>
+                            </div>
                         </div>
-                        <span class="status-badge bg-amber-100 text-amber-600">Upcoming</span>
-                    </div>
-                    
-                    <h3 class="text-xl font-extrabold text-navy mb-2">IT Society Officers</h3>
-                    <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-6">Program Level</p>
-                    
-                    <div class="space-y-4 mb-8 text-slate-400">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-calendar text-slate-300 w-5"></i>
-                            <span class="text-sm font-semibold">Starts: May 15, 2026</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-user-check text-slate-300 w-5"></i>
-                            <span class="text-sm font-semibold">Registration Required</span>
+                        <div class="p-8 pt-0">
+                            <a href="ballot.php?election_id=<?php echo urlencode($election['id']); ?>" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
+                                Proceed to Ballot
+                                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                            </a>
                         </div>
                     </div>
-                </div>
-                <div class="p-8 pt-0">
-                    <button disabled class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-bold flex items-center justify-center gap-3 cursor-not-allowed">
-                        <i class="fa-solid fa-lock text-xs"></i>
-                        Not Yet Open
-                    </button>
-                </div>
-            </div>
-
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
 
         <!-- Security Notice -->
