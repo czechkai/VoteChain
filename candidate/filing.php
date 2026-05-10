@@ -1,7 +1,7 @@
 <?php
 require_once '../includes/config.php';
-requireRole('candidate');
-$role = 'candidate';
+requireCandidateFilingAccess($pdo);
+$role = (($_SESSION['role'] ?? 'student') === 'candidate') ? 'candidate' : 'student';
 $activePage = 'filing';
 
 $activeElections = $pdo ? getActiveElections($pdo) : [];
@@ -19,10 +19,13 @@ $alertMessage = '';
 $alertType = '';
 if (isset($_GET['success'])) {
     $alertType = 'success';
-    $alertMessage = 'Filing submitted successfully. Please wait for admin approval.';
+    $alertMessage = 'Filing submitted successfully. Your role stays as student until admin approval.';
 } elseif (isset($_GET['error'])) {
     $alertType = 'error';
     $alertMessage = 'Filing failed. Please check your inputs and try again.';
+} elseif (isset($_GET['application'])) {
+    $alertType = 'success';
+    $alertMessage = 'Candidate application mode enabled. Submit filing documents for admin review.';
 }
 ?>
 <!DOCTYPE html>

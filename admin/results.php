@@ -1,4 +1,70 @@
 <?php
+require_once __DIR__ . '/../includes/config.php';
+requireRole('admin');
+
+$activePage = 'admin_results';
+
+// Fetch elections
+try {
+    $stmt = $pdo->prepare("SELECT * FROM elections ORDER BY starts_at DESC");
+    $stmt->execute();
+    $elections = $stmt->fetchAll();
+} catch (Exception $e) {
+    $elections = [];
+}
+
+// Determine election to show ledger for (query param or most recent)
+$election_id = $_GET['election_id'] ?? null;
+if (!$election_id) {
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM elections WHERE status IN ('active','completed') ORDER BY starts_at DESC LIMIT 1");
+        $stmt->execute();
+        $row = $stmt->fetch();
+        $election_id = $row['id'] ?? null;
+    } catch (Exception $e) {
+        $election_id = null;
+    }
+}
+
+// Fetch ledger votes for selected election and verify per-vote integrity
+$ledger = [];
+if ($election_id) {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT v.id, v.election_id, v.voter_profile_id, v.position_id, v.candidate_id, v.tx_hash, v.prev_hash, v.created_at,
+                    p.first_name AS candidate_first, p.last_name AS candidate_last, pos.name AS position_title
+             FROM votes v
+             JOIN candidates c ON v.candidate_id = c.id
+             JOIN profiles p ON c.profile_id = p.id
+             JOIN positions pos ON v.position_id = pos.id
+             WHERE v.election_id = ?
+             ORDER BY v.created_at ASC"
+        );
+        $stmt->execute([$election_id]);
+        $rows = $stmt->fetchAll();
+
+        $expectedPrev = 'GENESIS';
+        foreach ($rows as $r) {
+            $payload = implode('|', [
+                $election_id,
+                $r['voter_profile_id'],
+                $r['position_id'],
+                $r['candidate_id'],
+                $expectedPrev
+            ]);
+            $expectedHash = hash('sha256', $payload);
+            $tampered = ($r['prev_hash'] !== $expectedPrev) || ($r['tx_hash'] !== $expectedHash);
+            $r['tampered'] = $tampered;
+            $ledger[] = $r;
+            $expectedPrev = $r['tx_hash'];
+        }
+    } catch (Exception $e) {
+        $ledger = [];
+    }
+}
+
+?>
+<?php
 require_once '../includes/config.php';
 requireRole('admin');
 
@@ -301,6 +367,79 @@ $pageTitle = 'Live Results';
                 </div>
             </div>
 
+            <!-- Admin Ledger -->
+            <div class="glass-card p-8 mt-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-black text-navy">Blockchain Ledger (Admin)</h3>
+                    <div class="flex items-center gap-3">
+                        <a href="?election_id=<?php echo urlencode($election_id); ?>&export=csv" class="text-xs font-bold bg-slate-100 text-navy px-3 py-2 rounded-md hover:bg-slate-200">Export CSV</a>
+                        <button id="verifyChainBtn" class="text-xs font-bold text-royal flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 hover:bg-blue-100">
+                            <i class="fa-solid fa-shield-check"></i> Verify Chain
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-slate-100">
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">#</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Prev Hash</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Tx Hash</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Position</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Candidate</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Timestamp</th>
+                                <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($ledger)): ?>
+                                <tr><td colspan="7" class="py-4 text-center text-slate-400">No ledger entries for this election.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($ledger as $i => $row): ?>
+                                    <?php
+                                        $voteData = json_encode([
+                                            'index' => $i + 1,
+                                            'id' => $row['id'],
+                                            'election_id' => $row['election_id'],
+                                            'voter_profile_id' => $row['voter_profile_id'],
+                                            'position_id' => $row['position_id'],
+                                            'candidate_id' => $row['candidate_id'],
+                                            'tx_hash' => $row['tx_hash'],
+                                            'prev_hash' => $row['prev_hash']
+                                        ]);
+                                    ?>
+                                    <tr class="border-b vote-row <?php echo $row['tampered'] ? 'bg-red-50' : 'bg-green-50'; ?>" data-vote='<?php echo htmlspecialchars($voteData); ?>'>
+                                        <td class="py-3"><?php echo $i+1; ?></td>
+                                        <td class="py-3 font-mono text-xs" title="<?php echo $row['prev_hash']; ?>"><?php echo substr($row['prev_hash'],0,8) . '...' . substr($row['prev_hash'],-8); ?></td>
+                                        <td class="py-3 font-mono text-xs" title="<?php echo $row['tx_hash']; ?>"><?php echo substr($row['tx_hash'],0,8) . '...' . substr($row['tx_hash'],-8); ?></td>
+                                        <td class="py-3"><?php echo htmlspecialchars($row['position_title']); ?></td>
+                                        <td class="py-3"><?php echo htmlspecialchars($row['candidate_first'] . ' ' . $row['candidate_last']); ?></td>
+                                        <td class="py-3 text-xs"><?php echo $row['created_at']; ?></td>
+                                        <td class="py-3 text-xs font-bold"><span class="status-badge <?php echo $row['tampered'] ? 'text-red-600' : 'text-green-600'; ?>"><?php echo $row['tampered'] ? '⚠ Tampered' : '✓ Valid'; ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Verification Modal -->
+            <div id="verificationModal" class="fixed inset-0 bg-slate-900/15 backdrop-blur-sm hidden flex items-center justify-center z-50">
+                <div class="glass-card bg-white/95 p-8 w-full max-w-md rounded-3xl shadow-2xl border border-slate-100">
+                    <div class="flex items-center justify-center mb-4">
+                        <div id="modalIcon" class="text-5xl"></div>
+                    </div>
+                    <h2 id="modalTitle" class="text-2xl font-black text-navy text-center mb-4">Blockchain Verification</h2>
+                    <p id="modalMessage" class="text-center text-slate-600 mb-6"></p>
+                    <div id="modalDetails" class="bg-slate-50 rounded-2xl p-4 mb-6 hidden">
+                        <p id="detailsText" class="text-xs text-slate-600 font-mono"></p>
+                    </div>
+                    <button id="closeModalBtn" class="w-full bg-navy text-white font-bold py-3 rounded-2xl hover:bg-royal transition-all">Close</button>
+                </div>
+            </div>
+
             <!-- Export Results -->
             <div class="flex gap-4 justify-center mt-12 export-buttons">
                 <button onclick="window.print()" class="px-8 py-3 bg-slate-100 text-navy rounded-xl font-bold hover:bg-slate-200 transition">
@@ -314,5 +453,125 @@ $pageTitle = 'Live Results';
     </div>
 
     <?php include '../includes/footer.php'; ?>
+
+    <script>
+        function verifyVoteHash(voteData, expectedPrevHash) {
+            const payload = [
+                voteData.election_id,
+                voteData.voter_profile_id,
+                voteData.position_id,
+                voteData.candidate_id,
+                expectedPrevHash
+            ].join('|');
+
+            return crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload)).then(hashBuffer => {
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                return {
+                    calculated: hashHex,
+                    stored: voteData.tx_hash,
+                    isValid: hashHex === voteData.tx_hash,
+                    expectedPrev: expectedPrevHash,
+                    storedPrev: voteData.prev_hash
+                };
+            });
+        }
+
+        async function verifyAllVotes() {
+            const rows = document.querySelectorAll('.vote-row');
+            let expectedPrevHash = 'GENESIS';
+            let hasErrors = false;
+
+            for (const row of rows) {
+                const voteData = JSON.parse(row.getAttribute('data-vote'));
+                const statusBadge = row.querySelector('.status-badge');
+
+                try {
+                    const result = await verifyVoteHash(voteData, expectedPrevHash);
+
+                    if (!result.isValid || result.storedPrev !== expectedPrevHash) {
+                        row.classList.add('bg-red-50', 'border-2', 'border-red-300');
+                        row.classList.remove('bg-green-50');
+                        statusBadge.className = 'status-badge text-red-600';
+                        statusBadge.textContent = '⚠ Tampered';
+                        hasErrors = true;
+                    } else {
+                        row.classList.add('bg-green-50');
+                        row.classList.remove('bg-red-50', 'border-2', 'border-red-300');
+                        statusBadge.className = 'status-badge text-green-600';
+                        statusBadge.textContent = '✓ Valid';
+                    }
+
+                    expectedPrevHash = result.stored;
+                } catch (error) {
+                    statusBadge.className = 'status-badge text-yellow-600';
+                    statusBadge.textContent = 'Error';
+                }
+            }
+
+            return !hasErrors;
+        }
+
+        function showVerificationModal(isValid, customMessage = null) {
+            const modal = document.getElementById('verificationModal');
+            const icon = document.getElementById('modalIcon');
+            const title = document.getElementById('modalTitle');
+            const message = document.getElementById('modalMessage');
+            const details = document.getElementById('modalDetails');
+            const detailsText = document.getElementById('detailsText');
+
+            if (isValid === true) {
+                icon.textContent = '✓';
+                icon.className = 'text-5xl text-green-500';
+                title.textContent = 'Blockchain Valid';
+                title.className = 'text-2xl font-black text-green-600 text-center mb-4';
+                message.textContent = 'All vote hashes are intact and the blockchain chain is valid.';
+                details.classList.add('hidden');
+            } else if (isValid === false) {
+                icon.textContent = '⚠';
+                icon.className = 'text-5xl text-red-500';
+                title.textContent = 'Tampering Detected';
+                title.className = 'text-2xl font-black text-red-600 text-center mb-4';
+                message.textContent = 'Blockchain verification found tampering! Some votes have been modified or the chain is broken.';
+                details.classList.remove('hidden');
+                detailsText.textContent = 'Red rows in the ledger indicate votes with hash mismatches.';
+            } else {
+                icon.textContent = '✕';
+                icon.className = 'text-5xl text-orange-500';
+                title.textContent = 'Verification Error';
+                title.className = 'text-2xl font-black text-orange-600 text-center mb-4';
+                message.textContent = customMessage || 'An error occurred during verification.';
+                details.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        document.getElementById('verifyChainBtn')?.addEventListener('click', async function() {
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+
+            try {
+                const isValid = await verifyAllVotes();
+                showVerificationModal(isValid);
+            } catch (error) {
+                showVerificationModal(false, 'Error verifying blockchain: ' + error.message);
+            } finally {
+                this.disabled = false;
+                this.innerHTML = originalHTML;
+            }
+        });
+
+        document.getElementById('closeModalBtn')?.addEventListener('click', function() {
+            document.getElementById('verificationModal')?.classList.add('hidden');
+        });
+
+        document.getElementById('verificationModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+    </script>
 </body>
 </html>

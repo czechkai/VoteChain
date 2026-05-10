@@ -44,14 +44,39 @@ try {
         exit;
     }
 
-    $_SESSION['profile_id'] = $profile['id'];
+    $profileId = $profile['id'];
+    $rawRole = $profile['role'] ?? 'student';
+    $role = 'student';
+
+    if ($rawRole === 'admin') {
+        $role = 'admin';
+        $_SESSION['candidate_application_mode'] = 0;
+    } else {
+        $hasApprovedCandidate = hasApprovedCandidateAccess($pdo, $profileId);
+        $hasCandidateRequest = hasCandidateApplication($pdo, $profileId);
+
+        // Candidate access requires both admin approval and explicit candidate role.
+        if ($rawRole === 'candidate' && $hasApprovedCandidate) {
+            $role = 'candidate';
+            $_SESSION['candidate_application_mode'] = 0;
+        } else {
+            $role = 'student';
+            $_SESSION['candidate_application_mode'] = $hasCandidateRequest ? 1 : 0;
+
+            if ($rawRole === 'candidate') {
+                $syncStmt = $pdo->prepare("UPDATE profiles SET role = 'student' WHERE id = ?");
+                $syncStmt->execute([$profileId]);
+            }
+        }
+    }
+
+    $_SESSION['profile_id'] = $profileId;
     $_SESSION['email'] = $profile['email'];
     $_SESSION['first_name'] = $profile['first_name'];
     $_SESSION['last_name'] = $profile['last_name'];
-    $_SESSION['role'] = $profile['role'];
+    $_SESSION['role'] = $role;
     $_SESSION['student_id'] = $profile['student_id'];
 
-    $role = $profile['role'] ?? 'student';
     $redirect = '../student/dashboard.php';
 
     if ($role === 'admin') {

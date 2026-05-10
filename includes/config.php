@@ -104,6 +104,73 @@ function requireRole($roles) {
 }
 
 /**
+ * Check whether profile has at least one approved candidate record.
+ */
+function hasApprovedCandidateAccess($pdo, $profileId) {
+    if (!$pdo || !$profileId) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT 1 FROM candidates WHERE profile_id = ? AND LOWER(COALESCE(status, '')) = 'approved' LIMIT 1"
+        );
+        $stmt->execute([$profileId]);
+        return $stmt->fetch() !== null;
+    } catch (Exception $e) {
+        error_log('Error checking approved candidate access: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Check whether profile has any candidate application record.
+ */
+function hasCandidateApplication($pdo, $profileId) {
+    if (!$pdo || !$profileId) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT 1 FROM candidates WHERE profile_id = ? LIMIT 1");
+        $stmt->execute([$profileId]);
+        return $stmt->fetch() !== null;
+    } catch (Exception $e) {
+        error_log('Error checking candidate application: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Allow candidate filing for approved candidates and students who started application mode.
+ */
+function requireCandidateFilingAccess($pdo) {
+    if (!isLoggedIn()) {
+        header('Location: ../auth/login.php');
+        exit;
+    }
+
+    $currentRole = $_SESSION['role'] ?? 'student';
+    if ($currentRole === 'candidate' || $currentRole === 'admin') {
+        return;
+    }
+
+    if (!empty($_SESSION['candidate_application_mode'])) {
+        return;
+    }
+
+    // Recover access after re-login if application already exists.
+    $profileId = $_SESSION['profile_id'] ?? null;
+    if ($profileId && hasCandidateApplication($pdo, $profileId)) {
+        $_SESSION['candidate_application_mode'] = 1;
+        return;
+    }
+
+    header('Location: ../student/dashboard.php');
+    exit;
+}
+
+/**
  * Get profile by email
  */
 function getProfileByEmail($pdo, $email) {

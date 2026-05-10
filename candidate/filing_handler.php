@@ -5,7 +5,7 @@
  */
 
 require_once '../includes/config.php';
-requireRole('candidate');
+requireCandidateFilingAccess($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: filing.php');
@@ -95,6 +95,9 @@ try {
     }
 
     $pdo->commit();
+    if (($_SESSION['role'] ?? 'student') !== 'candidate') {
+        $_SESSION['candidate_application_mode'] = 1;
+    }
     header('Location: filing.php?success=1');
     exit;
 } catch (Exception $e) {

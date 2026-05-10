@@ -132,7 +132,7 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
         <!-- Role Switching / Profile -->
         <div class="border-t border-white/10 pt-6 mt-6">
             <?php if ($role === 'candidate'): ?>
-                <a href="/votechain/student/dashboard.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
+                <a href="/votechain/candidate/switch_to_student.php" class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-gold hover:bg-white/5 font-bold transition-all group mb-4">
                     <i class="fa-solid fa-arrow-right-from-bracket w-5"></i>
                     <span class="text-sm">Switch to Student</span>
                 </a>
