@@ -263,17 +263,84 @@ function getCandidates($pdo, $election_id, $position_id = null) {
  */
 function recordVote($pdo, $voter_profile_id, $election_id, $position_id, $candidate_id, $tx_hash = null) {
     try {
+        $prevHash = null;
+        if ($tx_hash === null) {
+            $prevStmt = $pdo->prepare(
+                "SELECT tx_hash FROM votes WHERE election_id = ? ORDER BY created_at DESC LIMIT 1"
+            );
+            $prevStmt->execute([$election_id]);
+            $prevHash = $prevStmt->fetchColumn() ?: 'GENESIS';
+
+            $payload = implode('|', [
+                $election_id,
+                $voter_profile_id,
+                $position_id,
+                $candidate_id,
+                $prevHash
+            ]);
+            $tx_hash = hash('sha256', $payload);
+        }
+
         $stmt = $pdo->prepare("
-            INSERT INTO votes (election_id, voter_profile_id, position_id, candidate_id, tx_hash)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO votes (election_id, voter_profile_id, position_id, candidate_id, tx_hash, prev_hash)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
         
-        $success = $stmt->execute([$election_id, $voter_profile_id, $position_id, $candidate_id, $tx_hash]);
+        $success = $stmt->execute([
+            $election_id,
+            $voter_profile_id,
+            $position_id,
+            $candidate_id,
+            $tx_hash,
+            $prevHash
+        ]);
         
         return ['success' => $success];
+    } catch (PDOException $e) {
+        error_log("Error recording vote: " . $e->getMessage());
+        return ['success' => false, 'code' => $e->getCode(), 'message' => $e->getMessage()];
     } catch (Exception $e) {
         error_log("Error recording vote: " . $e->getMessage());
         return ['success' => false, 'message' => $e->getMessage()];
+    }
+}
+
+/**
+ * Verify vote chain integrity for an election
+ */
+function verifyVoteChain($pdo, $election_id) {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id, voter_profile_id, position_id, candidate_id, tx_hash, prev_hash
+             FROM votes
+             WHERE election_id = ?
+             ORDER BY created_at ASC"
+        );
+        $stmt->execute([$election_id]);
+        $votes = $stmt->fetchAll();
+
+        $expectedPrev = 'GENESIS';
+        foreach ($votes as $vote) {
+            $payload = implode('|', [
+                $election_id,
+                $vote['voter_profile_id'],
+                $vote['position_id'],
+                $vote['candidate_id'],
+                $expectedPrev
+            ]);
+            $expectedHash = hash('sha256', $payload);
+
+            if ($vote['prev_hash'] !== $expectedPrev || $vote['tx_hash'] !== $expectedHash) {
+                return ['valid' => false, 'broken_at' => $vote['id']];
+            }
+
+            $expectedPrev = $vote['tx_hash'];
+        }
+
+        return ['valid' => true];
+    } catch (Exception $e) {
+        error_log("Error verifying vote chain: " . $e->getMessage());
+        return ['valid' => false, 'message' => 'Verification error'];
     }
 }
 

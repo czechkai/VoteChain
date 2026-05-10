@@ -7,9 +7,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!$pdo) {
-    header('Location: ballot.php?error=1');
+function redirectVoteError($electionId, $code) {
+    $target = 'ballot.php?election_id=' . urlencode($electionId) . '&error=' . urlencode($code);
+    header('Location: ' . $target);
     exit;
+}
+
+if (!$pdo) {
+    redirectVoteError($electionId ?? '', 'server');
 }
 
 $electionId = $_POST['election_id'] ?? '';
@@ -17,17 +22,16 @@ $votes = $_POST['votes'] ?? [];
 $voterProfileId = $_SESSION['profile_id'] ?? null;
 
 if (!$electionId || !$voterProfileId || !is_array($votes)) {
-    header('Location: ballot.php?error=1');
-    exit;
+    redirectVoteError($electionId, 'missing');
 }
 
 try {
     $electionStmt = $pdo->prepare("SELECT id FROM elections WHERE id = ? AND status = 'active' LIMIT 1");
     $electionStmt->execute([$electionId]);
     if (!$electionStmt->fetch()) {
-        header('Location: ballot.php?error=1');
-        exit;
+        redirectVoteError($electionId, 'election');
     }
+
 
     $positionStmt = $pdo->prepare(
         "SELECT DISTINCT pos.id
@@ -40,8 +44,7 @@ try {
 
     foreach ($requiredPositions as $positionId) {
         if (!isset($votes[$positionId]) || !$votes[$positionId]) {
-            header('Location: ballot.php?election_id=' . urlencode($electionId) . '&error=1');
-            exit;
+            redirectVoteError($electionId, 'missing');
         }
     }
 
@@ -52,24 +55,19 @@ try {
     $pdo->beginTransaction();
 
     foreach ($votes as $positionId => $candidateId) {
-        if (hasUserVoted($pdo, $voterProfileId, $electionId, $positionId)) {
-            $pdo->rollBack();
-            header('Location: ballot.php?election_id=' . urlencode($electionId) . '&error=1');
-            exit;
-        }
-
         $candidateCheck->execute([$candidateId, $electionId, $positionId]);
         if (!$candidateCheck->fetch()) {
             $pdo->rollBack();
-            header('Location: ballot.php?election_id=' . urlencode($electionId) . '&error=1');
-            exit;
+            redirectVoteError($electionId, 'candidate');
         }
 
         $record = recordVote($pdo, $voterProfileId, $electionId, $positionId, $candidateId, null);
         if (!$record['success']) {
             $pdo->rollBack();
-            header('Location: ballot.php?election_id=' . urlencode($electionId) . '&error=1');
-            exit;
+            if (isset($result['code']) && $result['code'] === '23505') {
+                redirectVoteError($electionId, 'duplicate');
+            }
+            redirectVoteError($electionId, 'save');
         }
     }
 
@@ -81,6 +79,5 @@ try {
         $pdo->rollBack();
     }
     error_log('Submit vote error: ' . $e->getMessage());
-    header('Location: ballot.php?election_id=' . urlencode($electionId) . '&error=1');
-    exit;
+    redirectVoteError($electionId, 'server');
 }

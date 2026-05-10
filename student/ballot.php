@@ -18,11 +18,20 @@ if (!$electionId) {
 $election = null;
 $positions = [];
 $positionsWithCandidates = [];
+$alreadyVotedElection = false;
 
 if ($pdo) {
     $electionStmt = $pdo->prepare("SELECT * FROM elections WHERE id = ? AND status = 'active' LIMIT 1");
     $electionStmt->execute([$electionId]);
     $election = $electionStmt->fetch();
+
+    if ($election && $voterProfileId) {
+        $voteCountStmt = $pdo->prepare(
+            "SELECT COUNT(*) FROM votes WHERE voter_profile_id = ? AND election_id = ?"
+        );
+        $voteCountStmt->execute([$voterProfileId, $electionId]);
+        $alreadyVotedElection = (int) $voteCountStmt->fetchColumn() > 0;
+    }
 
     if ($election) {
         $positionStmt = $pdo->prepare(
@@ -49,7 +58,17 @@ if (isset($_GET['success'])) {
     $alertMessage = 'Your vote has been recorded successfully.';
 } elseif (isset($_GET['error'])) {
     $alertType = 'error';
-    $alertMessage = 'Voting failed. Please review your selections and try again.';
+    $errorCode = $_GET['error'];
+    $messages = [
+        'missing' => 'Please select a candidate for every position before submitting.',
+        'election' => 'Election is not active or does not exist.',
+        'positions' => 'Positions for this election are not configured properly.',
+        'duplicate' => 'You already voted for one of these positions.',
+        'candidate' => 'Selected candidate is invalid for this position.',
+        'save' => 'Unable to save your vote. Please try again.',
+        'server' => 'Server error while processing your vote.'
+    ];
+    $alertMessage = $messages[$errorCode] ?? 'Voting failed. Please review your selections and try again.';
 }
 ?>
 <!DOCTYPE html>
@@ -152,7 +171,7 @@ if (isset($_GET['success'])) {
                     <?php
                     $position = $group['position'];
                     $candidates = $group['candidates'];
-                    $alreadyVoted = $voterProfileId ? hasUserVoted($pdo, $voterProfileId, $electionId, $position['id']) : false;
+                    $alreadyVoted = $alreadyVotedElection;
                     ?>
                     <div class="mb-16">
                         <div class="flex items-end justify-between mb-8 border-b-2 border-slate-100 pb-4">
@@ -185,8 +204,8 @@ if (isset($_GET['success'])) {
                                     </label>
                                 <?php endforeach; ?>
                             </div>
-                            <?php if ($alreadyVoted): ?>
-                                <p class="text-xs font-bold text-emerald-600 mt-4">You already voted for this position.</p>
+                            <?php if ($alreadyVotedElection): ?>
+                                <p class="text-xs font-bold text-emerald-600 mt-4">You already submitted your vote for this election.</p>
                             <?php endif; ?>
                         <?php endif; ?>
                     </div>
@@ -213,20 +232,23 @@ if (isset($_GET['success'])) {
     </div>
 
     <script>
-        document.querySelectorAll('.candidate-card').forEach(card => {
-            const input = card.querySelector('input[type="radio"]');
-            if (!input) return;
-            card.addEventListener('click', () => {
-                if (input.disabled) return;
-                const groupName = input.name;
-                document.querySelectorAll(`input[name="${groupName}"]`).forEach(i => {
-                    const parent = i.closest('.candidate-card');
-                    parent?.classList.remove('selected', 'border-royal');
-                    parent?.querySelector('.check-icon')?.classList.add('hidden');
-                });
-                input.checked = true;
-                card.classList.add('selected', 'border-royal');
-                card.querySelector('.check-icon')?.classList.remove('hidden');
+        function updateGroupSelection(groupName) {
+            document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
+                const parent = input.closest('.candidate-card');
+                if (!parent) return;
+                if (input.checked) {
+                    parent.classList.add('selected');
+                    parent.querySelector('.check-icon')?.classList.remove('hidden');
+                } else {
+                    parent.classList.remove('selected');
+                    parent.querySelector('.check-icon')?.classList.add('hidden');
+                }
+            });
+        }
+
+        document.querySelectorAll('.candidate-card input[type="radio"]').forEach(input => {
+            input.addEventListener('change', () => {
+                updateGroupSelection(input.name);
             });
         });
     </script>
