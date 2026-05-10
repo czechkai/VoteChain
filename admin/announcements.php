@@ -27,11 +27,11 @@ $pageTitle = 'Announcements';
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex flex-col">
 
     <?php include '../includes/sidebar.php'; ?>
 
-    <div class="flex-1 lg:ml-72 flex flex-col min-w-0">
+    <div class="lg:ml-72 flex flex-col min-w-0 min-h-screen">
         <?php include '../includes/header.php'; ?>
 
         <main class="p-8 flex-1">
@@ -46,7 +46,7 @@ $pageTitle = 'Announcements';
             <!-- Announcements Grid -->
             <div class="grid lg:grid-cols-3 gap-6">
                 <!-- Announcement Card 1 -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                <div data-admin-search-item class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
@@ -70,7 +70,7 @@ $pageTitle = 'Announcements';
                 </div>
 
                 <!-- Announcement Card 2 -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                <div data-admin-search-item class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
@@ -94,7 +94,7 @@ $pageTitle = 'Announcements';
                 </div>
 
                 <!-- Announcement Card 3 -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-amber-100 hover:shadow-md transition-all">
+                <div data-admin-search-item class="bg-white p-6 rounded-[2rem] shadow-sm border border-amber-100 hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
@@ -118,7 +118,7 @@ $pageTitle = 'Announcements';
                 </div>
 
                 <!-- Announcement Card 4 -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 opacity-60 hover:shadow-md transition-all">
+                <div data-admin-search-item class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 opacity-60 hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">

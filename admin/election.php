@@ -27,11 +27,11 @@ $pageTitle = 'Election Management';
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex flex-col">
 
     <?php include '../includes/sidebar.php'; ?>
 
-    <div class="flex-1 lg:ml-72 flex flex-col min-w-0">
+    <div class="lg:ml-72 flex flex-col min-w-0 min-h-screen">
         <?php include '../includes/header.php'; ?>
 
         <main class="p-8">
@@ -39,7 +39,7 @@ $pageTitle = 'Election Management';
             <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Running / Scheduled</h3>
             <div class="grid md:grid-cols-2 gap-8">
                 <!-- Card 1 -->
-                <div class="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+                <div data-admin-search-item class="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-8">
                         <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase border border-emerald-100">Live Now</span>
                     </div>
@@ -76,7 +76,7 @@ $pageTitle = 'Election Management';
                 </div>
 
                 <!-- Card 2 -->
-                <div class="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+                <div data-admin-search-item class="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-8">
                         <span class="text-[10px] font-black text-slate-400 bg-slate-50 px-4 py-2 rounded-full uppercase border border-slate-100">Draft</span>
                     </div>

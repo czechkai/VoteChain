@@ -27,11 +27,11 @@ $pageTitle = 'Election Calendar';
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex flex-col">
 
     <?php include '../includes/sidebar.php'; ?>
 
-    <div class="flex-1 lg:ml-72 flex flex-col min-w-0">
+    <div class="lg:ml-72 flex flex-col min-w-0 min-h-screen">
         <?php include '../includes/header.php'; ?>
 
         <main class="p-8 flex-1">
@@ -53,7 +53,7 @@ $pageTitle = 'Election Calendar';
             </div>
 
             <!-- Calendar Grid -->
-            <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 mb-8">
+            <div data-admin-search-item class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 mb-8">
                 <!-- Days of Week -->
                 <div class="grid grid-cols-7 gap-2 mb-4">
                     <div class="text-center font-black text-slate-600 text-sm py-4">MON</div>
@@ -143,7 +143,7 @@ $pageTitle = 'Election Calendar';
 
             <!-- Legend -->
             <div class="grid md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                <div data-admin-search-item class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-emerald-400 rounded"></div>
                         <div>
@@ -153,7 +153,7 @@ $pageTitle = 'Election Calendar';
                     </div>
                 </div>
 
-                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                <div data-admin-search-item class="bg-purple-50 p-4 rounded-xl border border-purple-200">
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-purple-400 rounded"></div>
                         <div>
@@ -163,7 +163,7 @@ $pageTitle = 'Election Calendar';
                     </div>
                 </div>
 
-                <div class="bg-red-50 p-4 rounded-xl border border-red-200">
+                <div data-admin-search-item class="bg-red-50 p-4 rounded-xl border border-red-200">
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-red-400 rounded"></div>
                         <div>
@@ -175,7 +175,7 @@ $pageTitle = 'Election Calendar';
             </div>
 
             <!-- Timeline -->
-            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+            <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                 <h3 class="text-2xl font-black text-navy mb-8">Timeline of Events</h3>
                 <div class="space-y-6">
                     <div class="flex gap-6">

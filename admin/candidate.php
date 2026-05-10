@@ -27,11 +27,11 @@ $pageTitle = 'Candidate Applications';
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex flex-col">
 
     <?php include '../includes/sidebar.php'; ?>
 
-    <div class="flex-1 lg:ml-72 flex flex-col min-w-0">
+    <div class="lg:ml-72 flex flex-col min-w-0 min-h-screen">
         <?php include '../includes/header.php'; ?>
 
         <main class="p-8">
@@ -39,17 +39,17 @@ $pageTitle = 'Candidate Applications';
             <div class="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 mb-8 flex flex-wrap gap-4 items-center">
                 <div class="relative flex-1 min-w-[200px]">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" placeholder="Search by name or program..." class="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-2xl border-none text-sm outline-none">
+                    <input id="candidateSearchInput" type="text" placeholder="Search by name or program..." class="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-2xl border-none text-sm outline-none">
                 </div>
-                <select class="bg-slate-50 text-sm font-bold border-none rounded-2xl px-6 py-3 outline-none">
-                    <option>All Status</option>
-                    <option>Pending</option>
-                    <option>Approved</option>
+                <select id="candidateStatusFilter" class="bg-slate-50 text-sm font-bold border-none rounded-2xl px-6 py-3 outline-none">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
                 </select>
-                <select class="bg-slate-50 text-sm font-bold border-none rounded-2xl px-6 py-3 outline-none">
-                    <option>All Positions</option>
-                    <option>USC President</option>
-                    <option>USC Senator</option>
+                <select id="candidatePositionFilter" class="bg-slate-50 text-sm font-bold border-none rounded-2xl px-6 py-3 outline-none">
+                    <option value="">All Positions</option>
+                    <option value="usc president">USC President</option>
+                    <option value="usc secretary">USC Secretary</option>
                 </select>
             </div>
 
@@ -65,9 +65,9 @@ $pageTitle = 'Candidate Applications';
                             <th class="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-50">
+                        <tbody class="divide-y divide-slate-50">
                         <!-- Row 1 -->
-                        <tr class="hover:bg-slate-50/50 transition">
+                        <tr data-admin-search-item class="hover:bg-slate-50/50 transition">
                             <td class="px-8 py-5">
                                 <div class="flex items-center gap-4">
                                     <div class="w-12 h-12 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
@@ -100,7 +100,7 @@ $pageTitle = 'Candidate Applications';
                             </td>
                         </tr>
                         <!-- Row 2 -->
-                        <tr class="hover:bg-slate-50/50 transition">
+                        <tr data-admin-search-item class="hover:bg-slate-50/50 transition">
                             <td class="px-8 py-5">
                                 <div class="flex items-center gap-4">
                                     <div class="w-12 h-12 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
@@ -180,6 +180,39 @@ $pageTitle = 'Candidate Applications';
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('candidateSearchInput');
+            const statusFilter = document.getElementById('candidateStatusFilter');
+            const positionFilter = document.getElementById('candidatePositionFilter');
+            const rows = document.querySelectorAll('tr[data-admin-search-item]');
+
+            if (!searchInput || !statusFilter || !positionFilter || !rows.length) {
+                return;
+            }
+
+            const applyFilters = () => {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                const selectedStatus = statusFilter.value;
+                const selectedPosition = positionFilter.value;
+
+                rows.forEach((row) => {
+                    const rowText = row.textContent.toLowerCase();
+                    const rowStatus = row.querySelector('td:nth-child(4) span')?.textContent.toLowerCase() || '';
+                    const rowPosition = row.querySelector('td:nth-child(2) span')?.textContent.toLowerCase() || '';
+
+                    const matchesSearch = !searchTerm || rowText.includes(searchTerm);
+                    const matchesStatus = !selectedStatus || rowStatus.includes(selectedStatus);
+                    const matchesPosition = !selectedPosition || rowPosition.includes(selectedPosition);
+
+                    row.style.display = matchesSearch && matchesStatus && matchesPosition ? '' : 'none';
+                });
+            };
+
+            searchInput.addEventListener('input', applyFilters);
+            statusFilter.addEventListener('change', applyFilters);
+            positionFilter.addEventListener('change', applyFilters);
+        });
+
         function showDetailsModal() { document.getElementById('detailsModal').classList.remove('hidden'); }
         function closeDetailsModal() { document.getElementById('detailsModal').classList.add('hidden'); }
     </script>

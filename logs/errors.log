@@ -5,3 +5,60 @@
 [10-May-2026 09:35:13 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
 [10-May-2026 09:51:40 Europe/Berlin] Error creating profile: SQLSTATE[22P02]: Invalid text representation: 7 ERROR:  invalid input syntax for type boolean: ""
 CONTEXT:  unnamed portal parameter $10 = ''
+[10-May-2026 13:26:33 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IN ('pen...
+                                              ^
+[10-May-2026 13:28:41 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT filing_status, COUNT(*) AS cnt FROM candidates GROUP ...
+               ^ in C:\laragon\www\VoteChain\scripts\check-dashboard-stats.php:13
+Stack trace:
+#0 C:\laragon\www\VoteChain\scripts\check-dashboard-stats.php(13): PDO->query('SELECT filing_s...')
+#1 {main}
+  thrown in C:\laragon\www\VoteChain\scripts\check-dashboard-stats.php on line 13
+[10-May-2026 13:30:47 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:31:06 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:31:23 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:35:00 UTC] PHP Fatal error:  Uncaught Error: Call to a member function query() on null in C:\laragon\www\VoteChain\test-candidates.php:8
+Stack trace:
+#0 {main}
+  thrown in C:\laragon\www\VoteChain\test-candidates.php on line 8
+[10-May-2026 13:35:25 UTC] PHP Fatal error:  Uncaught Error: Call to a member function query() on null in C:\laragon\www\VoteChain\test-candidates.php:9
+Stack trace:
+#0 {main}
+  thrown in C:\laragon\www\VoteChain\test-candidates.php on line 9
+[10-May-2026 13:36:39 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:37:17 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:39:36 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:39:57 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: ...ECT COUNT(*) FROM candidates WHERE LOWER(COALESCE(filing_sta...
+                                                             ^
+[10-May-2026 13:47:43 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
+[10-May-2026 13:50:08 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
+[10-May-2026 13:53:02 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
+[10-May-2026 13:53:42 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
+[10-May-2026 13:53:56 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
+[10-May-2026 13:54:12 UTC] Dashboard stats query error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "filing_status" does not exist
+LINE 1: SELECT COUNT(*) FROM candidates WHERE filing_status IS NULL ...
+                                              ^
