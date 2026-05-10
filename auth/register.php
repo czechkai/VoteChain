@@ -60,7 +60,7 @@ if (file_exists('../includes/config.php')) {
                 <span id="step-text" class="text-[10px] font-bold uppercase tracking-widest text-navy ml-2">Step 1: Personal</span>
             </div>
 
-            <form id="regForm" action="../student/dashboard.php" method="POST" class="space-y-6">
+            <form id="regForm" method="POST" class="space-y-6">
                 
                 <!-- Step 1: Personal -->
                 <div id="step-1" class="space-y-5 animate-in">
@@ -152,7 +152,7 @@ if (file_exists('../includes/config.php')) {
                     <div class="space-y-2">
                         <label class="text-xs font-extrabold text-navy uppercase tracking-widest ml-1">Confirm Password</label>
                         <div class="relative">
-                            <input type="password" id="confirmPass" onkeyup="validatePasswords()" required placeholder="••••••••" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-royal focus:bg-white outline-none transition-all font-medium">
+                            <input type="password" id="confirmPass" name="confirm_password" onkeyup="validatePasswords()" required placeholder="••••••••" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-royal focus:bg-white outline-none transition-all font-medium">
                             <button type="button" onclick="togglePass('confirmPass', 'eye-2')" class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy transition-colors">
                                 <i id="eye-2" class="fa-solid fa-eye"></i>
                             </button>
@@ -244,6 +244,29 @@ if (file_exists('../includes/config.php')) {
         </div>
     </div>
 
+    <!-- Status Modal -->
+    <div id="statusModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div id="statusIcon" class="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 text-green-700">
+                        <i id="statusIconSymbol" class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <h3 id="statusTitle" class="text-xl font-extrabold text-navy">Registration successful</h3>
+                        <p id="statusMessage" class="text-slate-500 text-sm mt-1">Your account has been stored in the database.</p>
+                    </div>
+                </div>
+                <button type="button" id="statusClose" class="text-slate-400 hover:text-navy">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="statusOk" class="px-6 py-3 bg-navy text-white rounded-2xl font-bold hover:bg-royal transition-all">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const programsData = {
             "FACET": [
@@ -328,8 +351,13 @@ if (file_exists('../includes/config.php')) {
         
         function nextPrev(n) {
             if (n === 1 && currentStep === 3) {
-                if(!validatePasswords()) return;
-                document.getElementById("regForm").submit();
+                if (!validatePasswords()) return;
+                const form = document.getElementById("regForm");
+                if (form.requestSubmit) {
+                    form.requestSubmit();
+                } else {
+                    form.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
                 return;
             }
             document.getElementById(`step-${currentStep}`).classList.add('hidden');
@@ -438,6 +466,119 @@ if (file_exists('../includes/config.php')) {
         }
 
         updateUI();
+
+        // Toggle Password Visibility
+        function togglePass(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Form Submission Handler
+        const statusModal = document.getElementById('statusModal');
+        const statusTitle = document.getElementById('statusTitle');
+        const statusMessage = document.getElementById('statusMessage');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusIconSymbol = document.getElementById('statusIconSymbol');
+        const statusClose = document.getElementById('statusClose');
+        const statusOk = document.getElementById('statusOk');
+        let pendingRedirect = null;
+
+        function showStatusModal(type, title, message, redirectUrl = null) {
+            pendingRedirect = redirectUrl;
+            statusTitle.textContent = title;
+            statusMessage.textContent = message;
+
+            if (type === 'success') {
+                statusIcon.classList.remove('bg-red-100', 'text-red-700');
+                statusIcon.classList.add('bg-green-100', 'text-green-700');
+                statusIconSymbol.classList.remove('fa-circle-xmark');
+                statusIconSymbol.classList.add('fa-check');
+            } else {
+                statusIcon.classList.remove('bg-green-100', 'text-green-700');
+                statusIcon.classList.add('bg-red-100', 'text-red-700');
+                statusIconSymbol.classList.remove('fa-check');
+                statusIconSymbol.classList.add('fa-circle-xmark');
+            }
+
+            statusModal.classList.remove('hidden');
+            statusModal.classList.add('flex');
+        }
+
+        function closeStatusModal() {
+            statusModal.classList.add('hidden');
+            statusModal.classList.remove('flex');
+            if (pendingRedirect) {
+                window.location.href = pendingRedirect;
+            }
+        }
+
+        statusClose.addEventListener('click', closeStatusModal);
+        statusOk.addEventListener('click', closeStatusModal);
+        statusModal.addEventListener('click', (e) => {
+            if (e.target === statusModal) closeStatusModal();
+        });
+
+        document.getElementById('regForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = true;
+            nextBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Creating Account...';
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('register_handler.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const rawText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseError) {
+                    showStatusModal('error', 'Registration failed', rawText || 'Server returned an invalid response.');
+                    nextBtn.disabled = false;
+                    nextBtn.innerHTML = 'Create Account';
+                    return;
+                }
+
+                if (!response.ok) {
+                    showStatusModal('error', 'Registration failed', data.message || 'Request failed.');
+                    nextBtn.disabled = false;
+                    nextBtn.innerHTML = 'Create Account';
+                    return;
+                }
+
+                if (data.success) {
+                    showStatusModal(
+                        'success',
+                        'Registration successful',
+                        data.message || 'Your account has been stored in the database.',
+                        data.redirect || '../student/dashboard.php'
+                    );
+                } else {
+                    showStatusModal('error', 'Registration failed', data.message || 'Please try again.');
+                    nextBtn.disabled = false;
+                    nextBtn.innerHTML = 'Create Account';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatusModal('error', 'Registration failed', 'An error occurred during registration. Please try again.');
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = 'Create Account';
+            }
+        });
     </script>
 </body>
 </html>

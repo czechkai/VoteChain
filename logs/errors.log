@@ -1,0 +1,7 @@
+[10-May-2026 09:32:28 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
+[10-May-2026 09:32:30 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
+[10-May-2026 09:32:54 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
+[10-May-2026 09:34:42 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
+[10-May-2026 09:35:13 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "db.limigeafrtzxvjafglqy.supabase.co" to address: Unknown host
+[10-May-2026 09:51:40 Europe/Berlin] Error creating profile: SQLSTATE[22P02]: Invalid text representation: 7 ERROR:  invalid input syntax for type boolean: ""
+CONTEXT:  unnamed portal parameter $10 = ''

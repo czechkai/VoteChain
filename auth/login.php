@@ -70,7 +70,7 @@ if (file_exists('../includes/config.php')) {
                 <p class="text-slate-500 font-medium">Please enter your credentials to cast your vote.</p>
             </div>
 
-            <form action="../student/dashboard.php" method="POST" class="space-y-6">
+            <form id="loginForm" method="POST" class="space-y-6">
                 <!-- Email/ID -->
                 <div class="space-y-2">
                     <label class="text-xs font-extrabold text-navy uppercase tracking-widest ml-1">Email or School ID</label>
@@ -121,6 +121,29 @@ if (file_exists('../includes/config.php')) {
         </div>
     </div>
 
+    <!-- Status Modal -->
+    <div id="loginStatusModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div id="loginStatusIcon" class="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 text-green-700">
+                        <i id="loginStatusIconSymbol" class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <h3 id="loginStatusTitle" class="text-xl font-extrabold text-navy">Login successful</h3>
+                        <p id="loginStatusMessage" class="text-slate-500 text-sm mt-1">Redirecting to dashboard.</p>
+                    </div>
+                </div>
+                <button type="button" id="loginStatusClose" class="text-slate-400 hover:text-navy">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="loginStatusOk" class="px-6 py-3 bg-navy text-white rounded-2xl font-bold hover:bg-royal transition-all">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function togglePassword(id, btn) {
             const input = document.getElementById(id);
@@ -133,6 +156,98 @@ if (file_exists('../includes/config.php')) {
                 icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         }
+
+        const loginStatusModal = document.getElementById('loginStatusModal');
+        const loginStatusTitle = document.getElementById('loginStatusTitle');
+        const loginStatusMessage = document.getElementById('loginStatusMessage');
+        const loginStatusIcon = document.getElementById('loginStatusIcon');
+        const loginStatusIconSymbol = document.getElementById('loginStatusIconSymbol');
+        const loginStatusClose = document.getElementById('loginStatusClose');
+        const loginStatusOk = document.getElementById('loginStatusOk');
+        let loginRedirect = null;
+
+        function showLoginStatus(type, title, message, redirectUrl = null) {
+            loginRedirect = redirectUrl;
+            loginStatusTitle.textContent = title;
+            loginStatusMessage.textContent = message;
+
+            if (type === 'success') {
+                loginStatusIcon.classList.remove('bg-red-100', 'text-red-700');
+                loginStatusIcon.classList.add('bg-green-100', 'text-green-700');
+                loginStatusIconSymbol.classList.remove('fa-circle-xmark');
+                loginStatusIconSymbol.classList.add('fa-check');
+            } else {
+                loginStatusIcon.classList.remove('bg-green-100', 'text-green-700');
+                loginStatusIcon.classList.add('bg-red-100', 'text-red-700');
+                loginStatusIconSymbol.classList.remove('fa-check');
+                loginStatusIconSymbol.classList.add('fa-circle-xmark');
+            }
+
+            loginStatusModal.classList.remove('hidden');
+            loginStatusModal.classList.add('flex');
+        }
+
+        function closeLoginStatus() {
+            loginStatusModal.classList.add('hidden');
+            loginStatusModal.classList.remove('flex');
+            if (loginRedirect) {
+                window.location.href = loginRedirect;
+            }
+        }
+
+        loginStatusClose.addEventListener('click', closeLoginStatus);
+        loginStatusOk.addEventListener('click', closeLoginStatus);
+        loginStatusModal.addEventListener('click', (e) => {
+            if (e.target === loginStatusModal) closeLoginStatus();
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Signing in...';
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('login_handler.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const rawText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseError) {
+                    showLoginStatus('error', 'Login failed', rawText || 'Server returned an invalid response.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Sign In <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    showLoginStatus('error', 'Login failed', data.message || 'Request failed.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Sign In <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>';
+                    return;
+                }
+
+                if (data.success) {
+                    showLoginStatus('success', 'Login successful', data.message || 'Redirecting to dashboard.', data.redirect || '../student/dashboard.php');
+                } else {
+                    showLoginStatus('error', 'Login failed', data.message || 'Invalid credentials.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Sign In <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showLoginStatus('error', 'Login failed', 'An error occurred during login. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Sign In <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>';
+            }
+        });
     </script>
 </body>
 </html>

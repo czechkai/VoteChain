@@ -8,18 +8,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   process.exit(1);
 }
 
-const response = await fetch(`${supabaseUrl}/rest/v1/`, {
-  method: "GET",
-  headers: {
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`
+try {
+  const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+    method: "GET",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`
+    }
+  });
+
+  if (response.ok || response.status === 401) {
+    console.log("✅ Supabase endpoint is reachable.");
+    setTimeout(() => process.exit(0), 100);
+  } else {
+    console.error(`❌ Supabase connection check failed. HTTP ${response.status}`);
+    setTimeout(() => process.exit(1), 100);
   }
-});
-
-if (response.ok || response.status === 401) {
-  console.log("Supabase endpoint is reachable.");
-  process.exit(0);
+} catch (error) {
+  console.error(`❌ Connection error: ${error.message}`);
+  setTimeout(() => process.exit(1), 100);
 }
-
-console.error(`Supabase connection check failed. HTTP ${response.status}`);
-process.exit(1);
