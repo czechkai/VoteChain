@@ -48,23 +48,23 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
 
             <?php if ($role === 'admin'): ?>
                 <!-- Admin Navigation -->
-                <a href="/admin/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-gauge-high w-5"></i>
                     <span>Dashboard</span>
                 </a>
 
-                <a href="/admin/candidate.php" class="<?php echo $activePage === 'candidate' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/candidate.php" class="<?php echo $activePage === 'candidate' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-users-gear w-5"></i>
                     <span>Candidate Apps</span>
                     <span class="ml-auto bg-gold text-navy text-[10px] px-2 py-0.5 rounded-full font-black">12</span>
                 </a>
 
-                <a href="/admin/election.php" class="<?php echo $activePage === 'election' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/election.php" class="<?php echo $activePage === 'election' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-box-archive w-5"></i>
                     <span>Elections</span>
                 </a>
 
-                <a href="/admin/announcements.php" class="<?php echo $activePage === 'announcements' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/announcements.php" class="<?php echo $activePage === 'announcements' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-bullhorn w-5"></i>
                     <span>Announcements</span>
                 </a>
@@ -72,12 +72,12 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
                 <div class="h-px bg-white/10 my-4 mx-4"></div>
                 <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-4 px-4">Reports</p>
 
-                <a href="/admin/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/results.php" class="<?php echo $activePage === 'results' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-chart-pie w-5"></i>
                     <span>Live Results</span>
                 </a>
 
-                <a href="/admin/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
+                <a href="/votechain/admin/calendar.php" class="<?php echo $activePage === 'calendar' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-calendar-days w-5"></i>
                     <span>Calendar</span>
                 </a>
