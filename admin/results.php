@@ -43,7 +43,7 @@ if ($election_id) {
              JOIN profiles p ON c.profile_id = p.id
              JOIN positions pos ON v.position_id = pos.id
              WHERE v.election_id = ?
-             ORDER BY v.created_at ASC"
+             ORDER BY v.created_at ASC, v.id ASC"
         );
         $stmt->execute([$election_id]);
         $rows = $stmt->fetchAll();
@@ -380,6 +380,9 @@ $pageTitle = 'Live Results';
                         <button id="verifyChainBtn" class="text-xs font-bold text-royal flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 hover:bg-blue-100">
                             <i class="fa-solid fa-shield-check"></i> Verify Chain
                         </button>
+                        <button id="restoreChainBtn" class="text-xs font-bold text-white flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700">
+                            <i class="fa-solid fa-rotate-right"></i> Restore Chain
+                        </button>
                     </div>
                 </div>
 
@@ -444,6 +447,39 @@ $pageTitle = 'Live Results';
                 </div>
             </div>
 
+            <!-- Restore Modal -->
+            <div id="restoreModal" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm hidden flex items-center justify-center z-50 no-print">
+                <div class="glass-card bg-white/95 p-8 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100">
+                    <div class="flex items-start justify-between gap-4 mb-5">
+                        <div>
+                            <h2 id="restoreModalTitle" class="text-2xl font-black text-navy">Restore Chain</h2>
+                            <p id="restoreModalMessage" class="text-sm text-slate-600 mt-1">This will recalculate the selected election chain from the stored vote records.</p>
+                        </div>
+                        <button id="closeRestoreModalBtn" class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition" aria-label="Close restore dialog">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
+                        <p class="text-sm font-semibold text-amber-800">Warning: restoring will rewrite the chain hashes for this election.</p>
+                    </div>
+
+                    <div id="restoreForm">
+                        <div class="mb-5">
+                            <label for="restoreConfirmInput" class="block text-sm font-bold text-slate-700 mb-2">Type RESTORE to continue</label>
+                            <input id="restoreConfirmInput" type="text" autocomplete="off" placeholder="RESTORE" class="w-full px-4 py-3 rounded-2xl border border-slate-200 outline-none focus:border-royal focus:ring-2 focus:ring-blue-100">
+                        </div>
+
+                        <div id="restoreStatus" class="hidden mb-5 rounded-2xl px-4 py-3 text-sm font-semibold"></div>
+
+                        <div class="flex gap-3">
+                            <button id="cancelRestoreBtn" class="flex-1 px-4 py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 transition">Cancel</button>
+                            <button id="confirmRestoreBtn" class="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition">Restore Chain</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Export Results -->
             <div class="flex gap-4 justify-center mt-12 export-buttons">
                 <button onclick="window.print()" class="px-8 py-3 bg-slate-100 text-navy rounded-xl font-bold hover:bg-slate-200 transition">
@@ -485,6 +521,8 @@ $pageTitle = 'Live Results';
             const rows = document.querySelectorAll('.vote-row');
             let expectedPrevHash = 'GENESIS';
             let hasErrors = false;
+            let brokenVoteIndex = null;
+            let brokenVoteId = null;
 
             for (const row of rows) {
                 const voteData = JSON.parse(row.getAttribute('data-vote'));
@@ -499,6 +537,11 @@ $pageTitle = 'Live Results';
                         statusBadge.className = 'status-badge text-red-600';
                         statusBadge.textContent = '⚠ Tampered';
                         hasErrors = true;
+
+                        if (brokenVoteIndex === null) {
+                            brokenVoteIndex = voteData.index;
+                            brokenVoteId = voteData.id;
+                        }
                     } else {
                         row.classList.add('bg-green-50');
                         row.classList.remove('bg-red-50', 'border-2', 'border-red-300');
@@ -513,10 +556,14 @@ $pageTitle = 'Live Results';
                 }
             }
 
-            return !hasErrors;
+            return {
+                isValid: !hasErrors,
+                brokenVoteIndex,
+                brokenVoteId
+            };
         }
 
-        function showVerificationModal(isValid, customMessage = null) {
+        function showVerificationModal(result, customMessage = null) {
             const modal = document.getElementById('verificationModal');
             const icon = document.getElementById('modalIcon');
             const title = document.getElementById('modalTitle');
@@ -524,21 +571,29 @@ $pageTitle = 'Live Results';
             const details = document.getElementById('modalDetails');
             const detailsText = document.getElementById('detailsText');
 
+            const isValid = typeof result === 'object' ? result?.isValid : result;
+            const brokenVoteIndex = typeof result === 'object' ? result?.brokenVoteIndex : null;
+            const brokenVoteId = typeof result === 'object' ? result?.brokenVoteId : null;
+
             if (isValid === true) {
                 icon.textContent = '✓';
                 icon.className = 'text-5xl text-green-500';
                 title.textContent = 'Blockchain Valid';
                 title.className = 'text-2xl font-black text-green-600 text-center mb-4';
-                message.textContent = 'All vote hashes are intact and the blockchain chain is valid.';
+                message.textContent = 'All vote hashes are intact. Every vote in this election is counted.';
                 details.classList.add('hidden');
             } else if (isValid === false) {
                 icon.textContent = '⚠';
                 icon.className = 'text-5xl text-red-500';
                 title.textContent = 'Tampering Detected';
                 title.className = 'text-2xl font-black text-red-600 text-center mb-4';
-                message.textContent = 'Blockchain verification found tampering! Some votes have been modified or the chain is broken.';
+                message.textContent = brokenVoteIndex
+                    ? 'Chain broken at vote #' + brokenVoteIndex + '. Votes after this point are not counted.'
+                    : 'Blockchain verification found tampering! Votes after the first broken link are not counted.';
                 details.classList.remove('hidden');
-                detailsText.textContent = 'Red rows in the ledger indicate votes with hash mismatches.';
+                detailsText.textContent = brokenVoteIndex
+                    ? 'Vote #' + brokenVoteIndex + (brokenVoteId ? ' (ID ' + brokenVoteId + ')' : '') + ' is the first invalid link. Only votes before it remain valid.'
+                    : 'Red rows in the ledger indicate votes with hash mismatches. Only votes before the first red row remain valid.';
             } else {
                 icon.textContent = '✕';
                 icon.className = 'text-5xl text-orange-500';
@@ -557,8 +612,8 @@ $pageTitle = 'Live Results';
             this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
 
             try {
-                const isValid = await verifyAllVotes();
-                showVerificationModal(isValid);
+                const verification = await verifyAllVotes();
+                showVerificationModal(verification);
             } catch (error) {
                 showVerificationModal(false, 'Error verifying blockchain: ' + error.message);
             } finally {
@@ -576,6 +631,129 @@ $pageTitle = 'Live Results';
                 this.classList.add('hidden');
             }
         });
+    </script>
+    <script>
+        (function(){
+            const restoreBtn = document.getElementById('restoreChainBtn');
+            const restoreModal = document.getElementById('restoreModal');
+            const restoreConfirmInput = document.getElementById('restoreConfirmInput');
+            const restoreStatus = document.getElementById('restoreStatus');
+            const restoreForm = document.getElementById('restoreForm');
+            const closeRestoreModalBtn = document.getElementById('closeRestoreModalBtn');
+            const cancelRestoreBtn = document.getElementById('cancelRestoreBtn');
+            const confirmRestoreBtn = document.getElementById('confirmRestoreBtn');
+            const electionId = <?php echo json_encode($election_id); ?>;
+
+            const openRestoreModal = () => {
+                if (!restoreModal) {
+                    return;
+                }
+
+                restoreModal.classList.remove('hidden');
+
+                if (restoreConfirmInput) {
+                    restoreConfirmInput.value = '';
+                    setTimeout(() => restoreConfirmInput.focus(), 0);
+                }
+
+                if (restoreStatus) {
+                    restoreStatus.className = 'hidden mb-5 rounded-2xl px-4 py-3 text-sm font-semibold';
+                    restoreStatus.textContent = '';
+                }
+
+                if (restoreForm) {
+                    restoreForm.classList.remove('hidden');
+                }
+            };
+
+            const closeRestoreModal = () => {
+                restoreModal?.classList.add('hidden');
+            };
+
+            const showRestoreStatus = (kind, message) => {
+                if (!restoreStatus) {
+                    return;
+                }
+
+                restoreStatus.className = kind === 'success'
+                    ? 'mb-5 rounded-2xl px-4 py-3 text-sm font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'mb-5 rounded-2xl px-4 py-3 text-sm font-semibold border bg-rose-50 text-rose-700 border-rose-200';
+                restoreStatus.textContent = message;
+                restoreStatus.classList.remove('hidden');
+            };
+
+            if (restoreBtn) {
+                restoreBtn.addEventListener('click', openRestoreModal);
+            }
+
+            closeRestoreModalBtn?.addEventListener('click', closeRestoreModal);
+            cancelRestoreBtn?.addEventListener('click', closeRestoreModal);
+
+            restoreModal?.addEventListener('click', (event) => {
+                if (event.target === restoreModal) {
+                    closeRestoreModal();
+                }
+            });
+
+            restoreConfirmInput?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    confirmRestoreBtn?.click();
+                }
+            });
+
+            confirmRestoreBtn?.addEventListener('click', async () => {
+                if (!electionId) {
+                    showRestoreStatus('error', 'No election is loaded for restore.');
+                    return;
+                }
+
+                if (!restoreConfirmInput || restoreConfirmInput.value.trim() !== 'RESTORE') {
+                    showRestoreStatus('error', 'Type RESTORE in the field to continue.');
+                    restoreConfirmInput?.focus();
+                    return;
+                }
+
+                restoreBtn.disabled = true;
+                restoreBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Restoring...';
+                confirmRestoreBtn.disabled = true;
+                cancelRestoreBtn.disabled = true;
+                showRestoreStatus('success', 'Restoring the chain now. Please wait.');
+
+                try {
+                    const res = await fetch('../includes/restore_chain.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ election_id: electionId, confirm: 'RESTORE' })
+                    });
+                    const rawResponse = await res.text();
+                    let data = {};
+
+                    try {
+                        data = rawResponse ? JSON.parse(rawResponse) : {};
+                    } catch (parseError) {
+                        throw new Error(rawResponse || parseError.message);
+                    }
+
+                    if (!res.ok && !data.message) {
+                        throw new Error('Restore request failed with HTTP ' + res.status);
+                    }
+
+                    if (data.success) {
+                        showRestoreStatus('success', 'Restore complete. ' + (data.repaired_count ?? 0) + ' vote(s) were recalculated.');
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        showRestoreStatus('error', 'Restore failed: ' + (data.message || data.error || JSON.stringify(data)));
+                    }
+                } catch (err) {
+                    showRestoreStatus('error', 'Restore error: ' + err.message);
+                } finally {
+                    restoreBtn.disabled = false;
+                    restoreBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Restore Chain';
+                    confirmRestoreBtn.disabled = false;
+                    cancelRestoreBtn.disabled = false;
+                }
+            });
+        })();
     </script>
 </body>
 </html>

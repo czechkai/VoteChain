@@ -227,3 +227,17 @@ LINE 3:                        COALESCE(c.image_url, c.profile_photo...
                                                      ^
 [11-May-2026 03:12:23 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp2\htdocs\VoteChain\student\results.php on line 155
 [11-May-2026 03:12:23 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:22:10 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:22:10 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:35:24 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:35:24 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:36:58 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:36:58 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:41:07 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:41:07 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:42:32 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:42:32 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:59:20 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 03:59:20 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 04:13:49 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 155
+[11-May-2026 04:13:49 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 155

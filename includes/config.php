@@ -349,7 +349,7 @@ function recordVote($pdo, $voter_profile_id, $election_id, $position_id, $candid
         $prevHash = null;
         if ($tx_hash === null) {
             $prevStmt = $pdo->prepare(
-                "SELECT tx_hash FROM votes WHERE election_id = ? ORDER BY created_at DESC LIMIT 1"
+                "SELECT tx_hash FROM votes WHERE election_id = ? ORDER BY created_at DESC, id DESC LIMIT 1"
             );
             $prevStmt->execute([$election_id]);
             $prevHash = $prevStmt->fetchColumn() ?: 'GENESIS';
@@ -397,7 +397,7 @@ function verifyVoteChain($pdo, $election_id) {
             "SELECT id, voter_profile_id, position_id, candidate_id, tx_hash, prev_hash
              FROM votes
              WHERE election_id = ?
-             ORDER BY created_at ASC"
+             ORDER BY created_at ASC, id ASC"
         );
         $stmt->execute([$election_id]);
         $votes = $stmt->fetchAll();
@@ -450,23 +450,60 @@ function hasUserVoted($pdo, $voter_profile_id, $election_id, $position_id) {
  */
 function getElectionResults($pdo, $election_id) {
     try {
-        $stmt = $pdo->prepare("
+        $candidateStmt = $pdo->prepare(" 
             SELECT 
                 c.*, 
                 p.first_name, 
                 p.last_name, 
                 pos.name as position_title,
-                COUNT(v.id) as vote_count
+                pos.order_index
             FROM candidates c
             JOIN profiles p ON c.profile_id = p.id
             JOIN positions pos ON c.position_id = pos.id
-            LEFT JOIN votes v ON c.id = v.candidate_id
             WHERE c.election_id = ?
-            GROUP BY c.id, p.id, pos.id
-            ORDER BY pos.order_index, vote_count DESC
+            ORDER BY pos.order_index ASC, c.created_at ASC, c.id ASC
         ");
-        $stmt->execute([$election_id]);
-        return $stmt->fetchAll();
+        $candidateStmt->execute([$election_id]);
+        $candidates = $candidateStmt->fetchAll();
+
+        $voteStmt = $pdo->prepare(" 
+            SELECT id, candidate_id, voter_profile_id, position_id, tx_hash, prev_hash, created_at
+            FROM votes
+            WHERE election_id = ?
+            ORDER BY created_at ASC, id ASC
+        ");
+        $voteStmt->execute([$election_id]);
+        $votes = $voteStmt->fetchAll();
+
+        $validVoteCounts = [];
+        $expectedPrev = 'GENESIS';
+
+        foreach ($votes as $vote) {
+            $payload = implode('|', [
+                $election_id,
+                $vote['voter_profile_id'],
+                $vote['position_id'],
+                $vote['candidate_id'],
+                $expectedPrev
+            ]);
+
+            $expectedHash = hash('sha256', $payload);
+            $isValid = ($vote['prev_hash'] === $expectedPrev) && ($vote['tx_hash'] === $expectedHash);
+
+            if (!$isValid) {
+                break;
+            }
+
+            $validVoteCounts[$vote['candidate_id']] = ($validVoteCounts[$vote['candidate_id']] ?? 0) + 1;
+            $expectedPrev = $vote['tx_hash'];
+        }
+
+        foreach ($candidates as &$candidate) {
+            $candidate['vote_count'] = $validVoteCounts[$candidate['id']] ?? 0;
+        }
+        unset($candidate);
+
+        return $candidates;
     } catch (Exception $e) {
         error_log("Error fetching results: " . $e->getMessage());
         return [];

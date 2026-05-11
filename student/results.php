@@ -44,10 +44,11 @@ if ($election_id) {
         // Get results grouped by position
         $results = getElectionResults($database, $election_id);
         
-        // Calculate total votes
-        $stmt = $database->prepare("SELECT COUNT(*) FROM votes WHERE election_id = ?");
-        $stmt->execute([$election_id]);
-        $totalVotes = $stmt->fetchColumn();
+        // Calculate total votes from the verified result set only.
+        $totalVotes = 0;
+        foreach ($results as $resultRow) {
+            $totalVotes += (int) ($resultRow['vote_count'] ?? 0);
+        }
         
         // Get all votes for blockchain ledger with candidate details
         $stmt = $database->prepare("
@@ -280,90 +281,6 @@ if ($results) {
             </div>
         </div>
 
-        <!-- Recent Blockchain Verifications -->
-        <div class="glass-card p-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-xl font-black text-navy">Blockchain Ledger</h3>
-                    <div class="flex items-center gap-3">
-                        <button id="exportPdfBtn" class="text-xs font-bold bg-slate-100 text-navy px-3 py-2 rounded-md hover:bg-slate-200">Export Ledger (PDF)</button>
-                        <button class="text-xs font-bold text-royal flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 hover:bg-blue-100" id="verifyChainBtn">
-                            <i class="fa-solid fa-shield-check"></i> Verify Chain
-                        </button>
-                    </div>
-                </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left" id="ledgerTable">
-                    <thead>
-                        <tr class="border-b border-slate-100">
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">#</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prev Hash</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tx Hash</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Position</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Candidate</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Timestamp</th>
-                            <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-sm font-medium" id="ledgerBody">
-                        <?php 
-                        if (empty($ledger)) {
-                            echo '<tr><td colspan="7" class="py-4 text-center text-slate-400">No votes recorded yet</td></tr>';
-                        } else {
-                            foreach ($ledger as $index => $vote) {
-                                $tx_short = substr($vote['tx_hash'], 0, 8) . '...' . substr($vote['tx_hash'], -8);
-                                $prev_short = substr($vote['prev_hash'], 0, 8) . (strlen($vote['prev_hash']) > 16 ? '...' . substr($vote['prev_hash'], -8) : '');
-                                $timestamp = date('H:i:s', strtotime($vote['created_at']));
-                                
-                                // Serialize vote data for JavaScript verification
-                                $voteData = json_encode([
-                                    'index' => $index + 1,
-                                    'id' => $vote['id'],
-                                    'election_id' => $vote['election_id'],
-                                    'voter_profile_id' => $vote['voter_profile_id'],
-                                    'position_id' => $vote['position_id'],
-                                    'candidate_id' => $vote['candidate_id'],
-                                    'tx_hash' => $vote['tx_hash'],
-                                    'prev_hash' => $vote['prev_hash']
-                                ]);
-                                ?>
-                                <tr class="border-b border-slate-50 last:border-0 vote-row <?php echo $vote['tampered'] ? 'bg-red-50' : 'bg-green-50'; ?>" data-vote='<?php echo htmlspecialchars($voteData); ?>'>
-                                    <td class="py-4 font-bold text-slate-500"><?php echo $index + 1; ?></td>
-                                    <td class="py-4 font-mono text-slate-500 text-xs" title="<?php echo $vote['prev_hash']; ?>"><?php echo $prev_short; ?></td>
-                                    <td class="py-4 font-mono text-royal text-xs" title="<?php echo $vote['tx_hash']; ?>"><?php echo $tx_short; ?></td>
-                                    <td class="py-4 text-navy font-semibold"><?php echo htmlspecialchars($vote['position_title']); ?></td>
-                                    <td class="py-4 text-slate-600">
-                                        <?php echo htmlspecialchars($vote['candidate_first'] . ' ' . $vote['candidate_last']); ?>
-                                    </td>
-                                    <td class="py-4 text-slate-500 text-xs"><?php echo $timestamp; ?></td>
-                                    <td class="py-4">
-                                        <span class="status-badge <?php echo $vote['tampered'] ? 'text-red-600' : 'text-green-600'; ?> text-xs font-bold"><?php echo $vote['tampered'] ? '⚠ Tampered' : '✓ Valid'; ?></span>
-                                    </td>
-                                </tr>
-                                <?php 
-                            }
-                        }
-                        ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Verification Modal -->
-        <div id="verificationModal" class="fixed inset-0 bg-slate-900/15 backdrop-blur-sm hidden flex items-center justify-center z-50">
-            <div class="glass-card bg-white/95 p-8 w-full max-w-md rounded-3xl shadow-2xl border border-slate-100">
-                <div class="flex items-center justify-center mb-4">
-                    <div id="modalIcon" class="text-5xl"></div>
-                </div>
-                <h2 id="modalTitle" class="text-2xl font-black text-navy text-center mb-4">Blockchain Verification</h2>
-                <p id="modalMessage" class="text-center text-slate-600 mb-6"></p>
-                <div id="modalDetails" class="bg-slate-50 rounded-2xl p-4 mb-6 hidden">
-                    <p id="detailsText" class="text-xs text-slate-600 font-mono"></p>
-                </div>
-                <button id="closeModalBtn" class="w-full bg-navy text-white font-bold py-3 rounded-2xl hover:bg-royal transition-all">
-                    Close
-                </button>
-            </div>
-        </div>
     </main>
 
     <script>
@@ -513,118 +430,6 @@ if ($results) {
                 return !hasErrors;
             }
 
-            // Initial status now matches admin via server-side pre-verification.
-
-            // Show verification modal
-            function showVerificationModal(isValid, customMessage = null) {
-                const modal = document.getElementById('verificationModal');
-                const icon = document.getElementById('modalIcon');
-                const title = document.getElementById('modalTitle');
-                const message = document.getElementById('modalMessage');
-                const details = document.getElementById('modalDetails');
-                const detailsText = document.getElementById('detailsText');
-
-                if (isValid === true) {
-                    icon.textContent = '✓';
-                    icon.className = 'text-5xl text-green-500';
-                    title.textContent = 'Blockchain Valid';
-                    title.className = 'text-2xl font-black text-green-600 text-center mb-4';
-                    message.textContent = 'All vote hashes are intact and the blockchain chain is valid. No tampering detected.';
-                    details.classList.add('hidden');
-                } else if (isValid === false) {
-                    icon.textContent = '⚠';
-                    icon.className = 'text-5xl text-red-500';
-                    title.textContent = 'Tampering Detected';
-                    title.className = 'text-2xl font-black text-red-600 text-center mb-4';
-                    message.textContent = 'Blockchain verification found tampering! Some votes have been modified or the chain is broken.';
-                    details.classList.remove('hidden');
-                    detailsText.textContent = 'Red rows in the ledger indicate votes with hash mismatches.';
-                } else {
-                    icon.textContent = '✕';
-                    icon.className = 'text-5xl text-orange-500';
-                    title.textContent = 'Verification Error';
-                    title.className = 'text-2xl font-black text-orange-600 text-center mb-4';
-                    message.textContent = customMessage || 'An error occurred during verification.';
-                    details.classList.add('hidden');
-                }
-
-                modal.classList.remove('hidden');
-            }
-
-            // Close modal button
-            const closeModalBtn = document.getElementById('closeModalBtn');
-            const verificationModal = document.getElementById('verificationModal');
-            
-            if (closeModalBtn) {
-                closeModalBtn.addEventListener('click', function() {
-                    verificationModal.classList.add('hidden');
-                });
-            }
-
-            // Close modal on background click
-            if (verificationModal) {
-                verificationModal.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        this.classList.add('hidden');
-                    }
-                });
-            }
-
-            // Close modal on background click
-            if (verificationModal) {
-                verificationModal.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        this.classList.add('hidden');
-                    }
-                });
-            }
-            const verifyBtn = document.getElementById('verifyChainBtn');
-            if (verifyBtn) {
-                verifyBtn.addEventListener('click', async function() {
-                    this.disabled = true;
-                    const originalHTML = this.innerHTML;
-                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
-
-                    try {
-                        const isValid = await verifyAllVotes();
-                        showVerificationModal(isValid);
-                    } catch (error) {
-                        showVerificationModal(false, 'Error verifying blockchain: ' + error.message);
-                    } finally {
-                        this.disabled = false;
-                        this.innerHTML = originalHTML;
-                    }
-                });
-            }
-
-            // Export ledger (print to PDF using browser)
-            const exportBtn = document.getElementById('exportPdfBtn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', function() {
-                    // Show only ledger for printing
-                    const originalTitle = document.title;
-                    window.print();
-                    document.title = originalTitle;
-                });
-            }
-
-            // Search / filter ledger rows
-            const ledgerSearch = document.getElementById('ledgerSearch');
-            function applyLedgerFilter() {
-                const q = ledgerSearch ? ledgerSearch.value.toLowerCase().trim() : '';
-                const pos = positionFilter ? positionFilter.value : '';
-                const rows = document.querySelectorAll('#ledgerBody .vote-row');
-                rows.forEach(row => {
-                    const posText = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
-                    const candText = row.querySelector('td:nth-child(5)').textContent.toLowerCase();
-                    let visible = true;
-                    if (pos && pos !== '' && posText !== pos.toLowerCase()) visible = false;
-                    if (q && !(posText.includes(q) || candText.includes(q))) visible = false;
-                    row.style.display = visible ? '' : 'none';
-                });
-            }
-            if (ledgerSearch) ledgerSearch.addEventListener('input', applyLedgerFilter);
-            if (positionFilter) positionFilter.addEventListener('change', applyLedgerFilter);
         };
     </script>
 </body>
