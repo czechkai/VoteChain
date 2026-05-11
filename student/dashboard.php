@@ -1,21 +1,81 @@
 <?php
 require_once '../includes/config.php';
+
+/** @var PDO $pdo */
+if (!$pdo) {
+    die('Database connection failed. Please check your configuration.');
+}
+
 requireRole('student');
 $role = 'student';
 $activePage = 'dashboard';
 
-$activeElections = $pdo ? getActiveElections($pdo) : [];
 $voterProfileId = $_SESSION['profile_id'] ?? null;
+$activeElections = [];
 $electionVoteStatus = [];
+$stats = [
+    'candidates' => 0,
+    'total_votes' => 0,
+    'time_remaining' => 'No Active Election',
+    'deadline_ts' => 0
+];
+$studentProfile = null;
+$upcomingEvents = [];
 
-if ($pdo && $voterProfileId && $activeElections) {
-    $voteCheckStmt = $pdo->prepare(
-        "SELECT COUNT(*) FROM votes WHERE voter_profile_id = ? AND election_id = ?"
-    );
+if ($pdo && $voterProfileId) {
+    try {
+        // Fetch Student Profile Details
+        $stmt = $pdo->prepare("SELECT * FROM profiles WHERE id = ?");
+        $stmt->execute([$voterProfileId]);
+        $studentProfile = $stmt->fetch();
 
-    foreach ($activeElections as $election) {
-        $voteCheckStmt->execute([$voterProfileId, $election['id']]);
-        $electionVoteStatus[$election['id']] = (int) $voteCheckStmt->fetchColumn() > 0;
+        // Schema detection for election columns
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'elections'");
+        $stmt->execute();
+        $eCols = array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $col_start = in_array('starts_at', $eCols) ? 'starts_at' : (in_array('start_date', $eCols) ? 'start_date' : 'created_at');
+        $col_end = in_array('ends_at', $eCols) ? 'ends_at' : (in_array('end_date', $eCols) ? 'end_date' : 'created_at');
+
+        // Fetch elections that are currently active based on TIME
+        $stmt = $pdo->prepare("SELECT * FROM elections WHERE (status = 'active') OR (NOW() BETWEEN $col_start AND $col_end) ORDER BY $col_start DESC");
+        $stmt->execute();
+        $activeElections = $stmt->fetchAll();
+
+        if ($activeElections) {
+            $electionIds = array_column($activeElections, 'id');
+            $placeholders = implode(',', array_fill(0, count($electionIds), '?'));
+
+            // Check Vote Status
+            $voteCheckStmt = $pdo->prepare("SELECT election_id FROM votes WHERE voter_profile_id = ? AND election_id IN ($placeholders)");
+            $voteCheckStmt->execute(array_merge([$voterProfileId], $electionIds));
+            $votedIds = $voteCheckStmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($activeElections as $e) {
+                $electionVoteStatus[$e['id']] = in_array($e['id'], $votedIds);
+            }
+
+            // Count Candidates in Active Elections
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM candidates WHERE election_id IN ($placeholders) AND status = 'approved'");
+            $stmt->execute($electionIds);
+            $stats['candidates'] = $stmt->fetchColumn();
+
+            // Time Remaining (from the nearest deadline based on the calendar end date)
+            $stmt = $pdo->prepare("SELECT $col_end FROM elections WHERE id IN ($placeholders) AND NOW() < $col_end ORDER BY $col_end ASC LIMIT 1");
+            $stmt->execute($electionIds);
+            $deadline = $stmt->fetchColumn();
+            if ($deadline) {
+                $stats['deadline_ts'] = strtotime($deadline);
+            }
+        }
+
+        // Total Votes Cast (System-wide)
+        $stats['total_votes'] = $pdo->query("SELECT COUNT(*) FROM votes")->fetchColumn();
+
+        // Upcoming Schedule (Next 2 events)
+        $stmt = $pdo->query("SELECT title, starts_at as event_date, 'Start' as type FROM elections WHERE starts_at > NOW() UNION SELECT title, ends_at, 'End' FROM elections WHERE ends_at > NOW() ORDER BY event_date ASC LIMIT 2");
+        $upcomingEvents = $stmt->fetchAll();
+
+    } catch (Exception $e) {
+        error_log("Dashboard Sync Error: " . $e->getMessage());
     }
 }
 ?>
@@ -63,20 +123,23 @@ if ($pdo && $voterProfileId && $activeElections) {
         <header class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
             <div>
                 <h1 class="text-2xl font-extrabold text-navy">Student Dashboard</h1>
-                <p class="text-slate-500 font-medium text-sm">Welcome back, <span class="text-royal font-bold">James Blanco</span></p>
+                <p class="text-slate-500 font-medium text-sm">Welcome back, <span class="text-royal font-bold"><?php echo htmlspecialchars(($_SESSION['first_name'] ?? 'Student') . ' ' . ($_SESSION['last_name'] ?? '')); ?></span></p>
             </div>
             <div class="flex items-center gap-4">
                 <div class="relative">
                     <button class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:text-navy custom-shadow transition-all">
                         <i class="fa-solid fa-bell"></i>
-                        <span class="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
                     </button>
                 </div>
                 <div class="flex items-center gap-3 bg-white p-2 pr-4 rounded-2xl custom-shadow">
-                    <div class="w-10 h-10 bg-navy rounded-xl overflow-hidden flex items-center justify-center text-white font-bold">JB</div>
+                    <div class="w-10 h-10 bg-navy rounded-xl overflow-hidden flex items-center justify-center text-white font-bold">
+                        <?php echo strtoupper(substr($_SESSION['first_name'] ?? 'S', 0, 1) . substr($_SESSION['last_name'] ?? '', 0, 1)); ?>
+                    </div>
                     <div class="hidden sm:block">
-                        <p class="text-xs font-extrabold text-navy">2026-0001</p>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">3rd Year • IT</p>
+                        <p class="text-xs font-extrabold text-navy"><?php echo htmlspecialchars($_SESSION['student_id'] ?? 'ID-PENDING'); ?></p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <?php echo htmlspecialchars(($studentProfile['year_level'] ?? 'N/A') . ' • ' . ($studentProfile['program_code'] ?? 'GENERAL')); ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -103,7 +166,7 @@ if ($pdo && $voterProfileId && $activeElections) {
                     <span class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg uppercase">Total</span>
                 </div>
                 <h3 class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-1">Candidates</h3>
-                <p class="text-2xl font-extrabold text-navy">14</p>
+                <p class="text-2xl font-extrabold text-navy"><?php echo number_format($stats['candidates']); ?></p>
             </div>
 
             <div class="glass-card p-6 rounded-[2rem] custom-shadow">
@@ -114,7 +177,7 @@ if ($pdo && $voterProfileId && $activeElections) {
                     <span class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg uppercase">Real-time</span>
                 </div>
                 <h3 class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-1">Total Votes Cast</h3>
-                <p class="text-2xl font-extrabold text-navy">1,204</p>
+                <p class="text-2xl font-extrabold text-navy"><?php echo number_format($stats['total_votes']); ?></p>
             </div>
 
             <div class="glass-card p-6 rounded-[2rem] custom-shadow">
@@ -125,7 +188,7 @@ if ($pdo && $voterProfileId && $activeElections) {
                     <span class="text-[10px] font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded-lg uppercase">Deadline</span>
                 </div>
                 <h3 class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-1">Time Remaining</h3>
-                <p class="text-2xl font-extrabold text-navy">04:12:00</p>
+                <p id="countdownTimer" class="text-2xl font-extrabold text-navy" data-expire="<?php echo $stats['deadline_ts']; ?>">--:--:--</p>
             </div>
         </div>
 
@@ -157,7 +220,7 @@ if ($pdo && $voterProfileId && $activeElections) {
 
                     <?php if (!$activeElections): ?>
                         <div class="bg-white p-6 rounded-[2rem] border border-slate-100 custom-shadow">
-                            <p class="text-sm text-slate-500 font-medium">No active elections yet.</p>
+                            <p class="text-sm text-slate-400 font-bold text-center py-4 uppercase tracking-widest">No active elections found</p>
                         </div>
                     <?php else: ?>
                         <?php foreach ($activeElections as $election): ?>
@@ -207,30 +270,26 @@ if ($pdo && $voterProfileId && $activeElections) {
                 <div class="glass-card p-6 rounded-[2rem] custom-shadow">
                     <h3 class="text-lg font-extrabold text-navy mb-6">Upcoming Schedule</h3>
                     <div class="space-y-6">
-                        <div class="flex gap-4">
-                            <div class="flex flex-col items-center justify-center min-w-[50px] h-14 bg-navy text-white rounded-xl">
-                                <span class="text-xs font-bold">MAY</span>
-                                <span class="text-lg font-black leading-none">12</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-navy text-sm">Candidates Forum</h4>
-                                <p class="text-xs text-slate-400">01:00 PM • DOrSU Gymnasium</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-4">
-                            <div class="flex flex-col items-center justify-center min-w-[50px] h-14 bg-slate-100 text-navy rounded-xl">
-                                <span class="text-xs font-bold">MAY</span>
-                                <span class="text-lg font-black leading-none">15</span>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-navy text-sm">Miting de Avance</h4>
-                                <p class="text-xs text-slate-400">08:00 AM • Virtual Hall</p>
-                            </div>
-                        </div>
+                        <?php if (empty($upcomingEvents)): ?>
+                            <p class="text-xs text-slate-400 font-medium text-center">No upcoming events scheduled.</p>
+                        <?php else: ?>
+                            <?php foreach ($upcomingEvents as $event): ?>
+                                <div class="flex gap-4">
+                                    <div class="flex flex-col items-center justify-center min-w-[50px] h-14 bg-navy text-white rounded-xl">
+                                        <span class="text-[10px] font-bold uppercase"><?php echo date('M', strtotime($event['event_date'])); ?></span>
+                                        <span class="text-lg font-black leading-none"><?php echo date('d', strtotime($event['event_date'])); ?></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-bold text-navy text-sm truncate"><?php echo htmlspecialchars($event['title']); ?></h4>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase"><?php echo $event['type']; ?> • <?php echo date('h:i A', strtotime($event['event_date'])); ?></p>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
-                    <button class="w-full mt-8 py-3 text-xs font-bold text-navy border-2 border-slate-100 rounded-xl hover:bg-slate-50 transition-all">
+                    <a href="calendar.php" class="block text-center w-full mt-8 py-3 text-xs font-bold text-navy border-2 border-slate-100 rounded-xl hover:bg-slate-50 transition-all">
                         View All Events
-                    </button>
+                    </a>
                 </div>
 
                 <!-- Timeline / Recent Activity -->
@@ -241,15 +300,14 @@ if ($pdo && $voterProfileId && $activeElections) {
                         
                         <div class="relative pl-8">
                             <div class="absolute left-0 top-1.5 w-6 h-6 bg-white border-4 border-royal rounded-full"></div>
-                            <p class="text-xs font-bold text-navy">Account Verified</p>
-                            <p class="text-[10px] text-slate-400">Identity successfully matched with registrar data.</p>
-                            <p class="text-[9px] text-royal font-bold uppercase mt-1">2 hours ago</p>
+                            <p class="text-xs font-bold text-navy">Registration Complete</p>
+                            <p class="text-[10px] text-slate-400">Welcome to the VoteChain platform.</p>
                         </div>
 
                         <div class="relative pl-8">
                             <div class="absolute left-0 top-1.5 w-6 h-6 bg-white border-4 border-gold rounded-full shadow-[0_0_10px_rgba(255,193,7,0.3)]"></div>
-                            <p class="text-xs font-bold text-navy">Security Alert</p>
-                            <p class="text-[10px] text-slate-400">New login detected from IP 192.168.1.1</p>
+                            <p class="text-xs font-bold text-navy">Eligibility Check</p>
+                            <p class="text-[10px] text-slate-400">Account verified with registrar data.</p>
                             <p class="text-[9px] text-royal font-bold uppercase mt-1">Yesterday</p>
                         </div>
                     </div>
@@ -262,6 +320,30 @@ if ($pdo && $voterProfileId && $activeElections) {
         // Initialize Charts
         window.onload = function() {
             const ctx = document.getElementById('participationChart').getContext('2d');
+
+            // Countdown Timer Logic
+            const timerEl = document.getElementById('countdownTimer');
+            const expireTs = parseInt(timerEl.dataset.expire) * 1000;
+
+            if (expireTs > 0) {
+                setInterval(() => {
+                    const now = new Date().getTime();
+                    const diff = expireTs - now;
+                    if (diff <= 0) {
+                        timerEl.textContent = "ENDED";
+                        return;
+                    }
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    timerEl.textContent = 
+                        String(hours).padStart(2, '0') + ":" + 
+                        String(minutes).padStart(2, '0') + ":" + 
+                        String(seconds).padStart(2, '0');
+                }, 1000);
+            } else {
+                timerEl.textContent = "00:00:00";
+            }
             
             new Chart(ctx, {
                 type: 'line',

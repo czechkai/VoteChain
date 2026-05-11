@@ -1,14 +1,40 @@
 <?php
 require_once '../includes/config.php';
+
+/** @var PDO $pdo */
+if (!$pdo) {
+    die('Database connection failed. Please check your configuration.');
+}
+
 requireCandidateFilingAccess($pdo);
 $role = (($_SESSION['role'] ?? 'student') === 'candidate') ? 'candidate' : 'student';
 $activePage = 'filing';
 
-$activeElections = $pdo ? getActiveElections($pdo) : [];
 $positions = [];
+$activeElections = [];
+
 if ($pdo) {
     try {
-        $posStmt = $pdo->query("SELECT id, name FROM positions ORDER BY order_index ASC");
+        // Schema detection for resilience
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'elections'");
+        $stmt->execute();
+        $eCols = array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $col_start = in_array('starts_at', $eCols) ? 'starts_at' : (in_array('start_date', $eCols) ? 'start_date' : 'created_at');
+        $col_end = in_array('ends_at', $eCols) ? 'ends_at' : (in_array('end_date', $eCols) ? 'end_date' : 'created_at');
+        $col_desc = in_array('description', $eCols) ? 'description' : (in_array('scope', $eCols) ? 'scope' : 'title');
+
+        // Fetch elections that are either 'active' or 'scheduled' so candidates can file early
+        $stmt = $pdo->prepare("SELECT * FROM elections WHERE status IN ('active', 'scheduled') ORDER BY $col_start DESC");
+        $stmt->execute();
+        $activeElections = $stmt->fetchAll();
+
+        // Resilience for positions table
+        $posStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'positions'");
+        $posStmt->execute();
+        $pCols = array_map('strtolower', $posStmt->fetchAll(PDO::FETCH_COLUMN));
+        $col_pos_order = in_array('order_index', $pCols) ? 'order_index' : (in_array('display_order', $pCols) ? 'display_order' : 'id');
+
+        $posStmt = $pdo->query("SELECT * FROM positions ORDER BY $col_pos_order ASC");
         $positions = $posStmt->fetchAll();
     } catch (Exception $e) {
         error_log('Positions fetch error: ' . $e->getMessage());
@@ -205,7 +231,7 @@ if (isset($_GET['success'])) {
                             <option value="" disabled selected>Select Position</option>
                             <?php foreach ($positions as $position): ?>
                                 <option value="<?php echo htmlspecialchars($position['id']); ?>">
-                                    <?php echo htmlspecialchars($position['name']); ?>
+                                    <?php echo htmlspecialchars($position['name'] ?? $position['title'] ?? 'Position'); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -214,7 +240,7 @@ if (isset($_GET['success'])) {
             </div>
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Certificate of Candidacy -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-blue-50 text-royal rounded-2xl flex items-center justify-center text-xl">
                             <i class="fa-solid fa-id-card"></i>
@@ -234,7 +260,7 @@ if (isset($_GET['success'])) {
                 </div>
 
                 <!-- Certificate of Registration -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-green-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl">
                             <i class="fa-solid fa-graduation-cap"></i>
@@ -254,7 +280,7 @@ if (isset($_GET['success'])) {
                 </div>
 
                 <!-- Report of Grades -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-xl">
                             <i class="fa-solid fa-chart-bar"></i>
@@ -274,7 +300,7 @@ if (isset($_GET['success'])) {
                 </div>
 
                 <!-- Certificate of Good Moral Character -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
                             <i class="fa-solid fa-heart"></i>
@@ -294,7 +320,7 @@ if (isset($_GET['success'])) {
                 </div>
 
                 <!-- Recommendation Letter -->
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-amber-100 border-dashed hover:shadow-md transition-shadow">
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
                             <i class="fa-solid fa-envelope"></i>
@@ -306,8 +332,8 @@ if (isset($_GET['success'])) {
                     <p class="text-xs text-slate-500 mb-4 flex-1">Support letter from a faculty member or department head.</p>
                     <label class="cursor-pointer">
                         <input type="file" id="recommendation" name="recommendation" class="file-input-hidden" accept=".pdf,.doc,.docx,.jpg,.png" onchange="handleFileUpload(this, 'recommendation')">
-                        <div class="w-full py-3 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
-                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload File
+                        <div class="w-full py-2 bg-navy text-white rounded-xl font-bold text-sm hover:bg-royal transition text-center">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Choose File
                         </div>
                     </label>
                     <p id="recommendation-filename" class="text-xs text-slate-500 mt-2 hidden"></p>
@@ -329,46 +355,28 @@ if (isset($_GET['success'])) {
         <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200">
             <h3 class="text-2xl font-extrabold text-navy mb-8">Election Timeline</h3>
             <div class="space-y-6">
-                <div class="flex gap-6">
-                    <div class="flex flex-col items-center">
-                        <div class="w-12 h-12 bg-navy text-white rounded-full flex items-center justify-center font-bold text-lg">
-                            <i class="fa-solid fa-calendar-check"></i>
+                <?php if (empty($activeElections)): ?>
+                    <p class="text-slate-400 font-bold text-center py-4 uppercase text-xs tracking-widest">No scheduled elections found</p>
+                <?php else: ?>
+                    <?php foreach ($activeElections as $election): ?>
+                        <div class="flex gap-6">
+                            <div class="flex flex-col items-center">
+                                <div class="w-12 h-12 bg-navy text-white rounded-full flex items-center justify-center font-bold text-lg shadow-lg shadow-navy/20">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                                <div class="w-1 h-16 bg-slate-100 my-2"></div>
+                            </div>
+                            <div class="pb-6">
+                                <p class="text-[10px] font-black text-gold uppercase tracking-widest">
+                                    <?php echo date('M d, Y', strtotime($election[$col_start])); ?> 
+                                    <?php if ($election[$col_end]): ?> — <?php echo date('M d, Y', strtotime($election[$col_end])); ?><?php endif; ?>
+                                </p>
+                                <h4 class="text-lg font-bold text-navy mt-1 uppercase"><?php echo htmlspecialchars($election['title'] ?? $election['name'] ?? 'Election'); ?></h4>
+                                <p class="text-slate-500 text-sm mt-2 leading-relaxed"><?php echo htmlspecialchars($election[$col_desc] ?? 'Voting period for university leaders.'); ?></p>
+                            </div>
                         </div>
-                        <div class="w-1 h-16 bg-slate-200 my-2"></div>
-                    </div>
-                    <div class="pb-6">
-                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">April 29 - May 5</p>
-                        <h4 class="text-lg font-bold text-navy mt-1">Application Period</h4>
-                        <p class="text-slate-600 text-sm mt-2">Filing and screening of candidates applications</p>
-                    </div>
-                </div>
-
-                <div class="flex gap-6">
-                    <div class="flex flex-col items-center">
-                        <div class="w-12 h-12 bg-royal text-white rounded-full flex items-center justify-center font-bold text-lg">
-                            <i class="fa-solid fa-megaphone"></i>
-                        </div>
-                        <div class="w-1 h-16 bg-slate-200 my-2"></div>
-                    </div>
-                    <div class="pb-6">
-                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">May 6 - May 13</p>
-                        <h4 class="text-lg font-bold text-navy mt-1">Campaign Period</h4>
-                        <p class="text-slate-600 text-sm mt-2">Candidates present platforms and campaign to students</p>
-                    </div>
-                </div>
-
-                <div class="flex gap-6">
-                    <div class="flex flex-col items-center">
-                        <div class="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                            <i class="fa-solid fa-vote-yea"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-gold uppercase tracking-widest">May 14</p>
-                        <h4 class="text-lg font-bold text-navy mt-1">Election Day</h4>
-                        <p class="text-slate-600 text-sm mt-2">Students cast their votes for university leaders</p>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </main>

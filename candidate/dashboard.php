@@ -1,8 +1,58 @@
 <?php
 require_once '../includes/config.php';
+
+/** @var PDO $pdo */
+if (!$pdo) {
+    die('Database connection failed. Please check your configuration.');
+}
+
 requireRole('candidate');
 $role = 'candidate';
 $activePage = 'dashboard';
+
+$profileId = $_SESSION['profile_id'] ?? null;
+$candidateData = null;
+$rank = 'N/A';
+$totalInPosition = 0;
+
+if ($pdo && $profileId) {
+    try {
+        // Schema detection for status and image columns
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'candidates' AND (column_name = 'status' OR column_name = 'filing_status')");
+        $stmt->execute();
+        $statusCol = $stmt->fetchColumn() ?: 'filing_status';
+
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'candidates' AND (column_name = 'image_url' OR column_name = 'profile_photo')");
+        $stmt->execute();
+        $imageCol = $stmt->fetchColumn() ?: 'image_url';
+
+        // Fetch Candidate Info with position and election
+        $stmt = $pdo->prepare("
+            SELECT c.*, pos.name as position_name, e.title as election_title,
+                   c.$statusCol as filing_status, c.$imageCol as photo
+            FROM candidates c
+            LEFT JOIN positions pos ON c.position_id = pos.id
+            LEFT JOIN elections e ON c.election_id = e.id
+            WHERE c.profile_id = ? OR c.user_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$profileId, $profileId]);
+        $candidateData = $stmt->fetch();
+
+        if ($candidateData) {
+            // Calculate Rank based on vote_count
+            $rankStmt = $pdo->prepare("SELECT COUNT(*) + 1 FROM candidates WHERE position_id = ? AND vote_count > ?");
+            $rankStmt->execute([$candidateData['position_id'], (int)$candidateData['vote_count']]);
+            $rank = $rankStmt->fetchColumn();
+
+            $totalStmt = $pdo->prepare("SELECT COUNT(*) FROM candidates WHERE position_id = ?");
+            $totalStmt->execute([$candidateData['position_id']]);
+            $totalInPosition = $totalStmt->fetchColumn();
+        }
+    } catch (Exception $e) {
+        error_log("Dashboard data error: " . $e->getMessage());
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -32,15 +82,28 @@ $activePage = 'dashboard';
 
     <header class="h-20 bg-white border-b sticky top-0 z-30 flex items-center justify-between px-8 lg:ml-72">
         <div>
-            <h2 class="text-xl font-black text-navy">Creator Studio</h2>
-            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Candidate Analytics Overview</p>
+            <h2 class="text-xl font-black text-navy"><?php echo $candidateData ? htmlspecialchars($candidateData['position_name']) : 'Creator Studio'; ?></h2>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest"><?php echo $candidateData ? htmlspecialchars($candidateData['election_title']) : 'Candidate Analytics Overview'; ?></p>
         </div>
         <div class="flex items-center gap-4">
-            <div class="px-4 py-2 bg-amber-50 text-amber-600 rounded-full border border-amber-100 text-[10px] font-black uppercase">
-                Filing Status: <span class="text-amber-700">Pending Review</span>
+            <?php 
+                $status = strtolower($candidateData['filing_status'] ?? 'pending');
+                $statusConfig = [
+                    'approved' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-600', 'border' => 'border-emerald-100', 'label' => 'Approved'],
+                    'rejected' => ['bg' => 'bg-rose-50', 'text' => 'text-rose-600', 'border' => 'border-rose-100', 'label' => 'Rejected'],
+                    'pending' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-600', 'border' => 'border-amber-100', 'label' => 'Pending Review']
+                ];
+                $config = $statusConfig[$status] ?? $statusConfig['pending'];
+            ?>
+            <div class="px-4 py-2 <?php echo $config['bg']; ?> <?php echo $config['text']; ?> rounded-full border <?php echo $config['border']; ?> text-[10px] font-black uppercase">
+                Filing Status: <span class="font-black uppercase ml-1"><?php echo $config['label']; ?></span>
             </div>
-            <div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm">
-                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="">
+            <div class="w-10 h-10 rounded-full bg-navy text-white overflow-hidden border-2 border-white shadow-sm flex items-center justify-center font-bold">
+                <?php if (!empty($candidateData['photo'])): ?>
+                    <img src="../<?php echo htmlspecialchars($candidateData['photo']); ?>" class="w-full h-full object-cover" alt="">
+                <?php else: ?>
+                    <?php echo strtoupper(substr($_SESSION['first_name'] ?? 'C', 0, 1)); ?>
+                <?php endif; ?>
             </div>
         </div>
     </header>
@@ -53,20 +116,20 @@ $activePage = 'dashboard';
                     <div class="w-12 h-12 bg-blue-50 text-royal rounded-2xl flex items-center justify-center text-xl">
                         <i class="fa-solid fa-users"></i>
                     </div>
-                    <span class="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">+12%</span>
+                    <span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">Est.</span>
                 </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Total Reach</h3>
-                <p class="text-3xl font-black text-navy mt-1">2,482</p>
+                <p class="text-3xl font-black text-navy mt-1"><?php echo number_format((int)($candidateData['vote_count'] ?? 0) * 3); ?></p>
             </div>
             <div class="glass-card p-6 rounded-[2rem] shadow-sm">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 bg-amber-50 text-gold rounded-2xl flex items-center justify-center text-xl">
                         <i class="fa-solid fa-heart"></i>
                     </div>
-                    <span class="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">+5.4%</span>
+                    <span class="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">Live</span>
                 </div>
-                <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Endorsements</h3>
-                <p class="text-3xl font-black text-navy mt-1">842</p>
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Total Votes</h3>
+                <p class="text-3xl font-black text-navy mt-1"><?php echo number_format($candidateData['vote_count'] ?? 0); ?></p>
             </div>
             <div class="glass-card p-6 rounded-[2rem] shadow-sm">
                 <div class="flex justify-between items-start mb-4">
@@ -85,7 +148,7 @@ $activePage = 'dashboard';
                     </div>
                 </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Current Rank</h3>
-                <p class="text-3xl font-black text-navy mt-1">#2 <span class="text-sm font-medium text-slate-400">of 5</span></p>
+                <p class="text-3xl font-black text-navy mt-1">#<?php echo $rank; ?> <span class="text-sm font-medium text-slate-400">of <?php echo $totalInPosition; ?></span></p>
             </div>
         </div>
 

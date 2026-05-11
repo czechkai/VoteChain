@@ -9,31 +9,120 @@ if (!$database instanceof PDO) {
 
 $activePage = 'admin_results';
 
+function adminResultsTableColumns($pdo, $tableName) {
+    try {
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = ?");
+        $stmt->execute([$tableName]);
+        return array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Throwable $e) {
+        error_log('Admin results column check error: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function adminResultsFirstAvailableColumn(array $columns, array $preferredColumns, $fallback = null) {
+    foreach ($preferredColumns as $column) {
+        if (in_array($column, $columns, true)) {
+            return $column;
+        }
+    }
+
+    return $fallback;
+}
+
+$electionsTableColumns = adminResultsTableColumns($database, 'elections');
+$votesTableColumns = adminResultsTableColumns($database, 'votes');
+$electionOrderColumn = adminResultsFirstAvailableColumn($electionsTableColumns, ['start_date', 'starts_at', 'created_at'], 'created_at');
+$voteStatusColumn = in_array('vote_status', $votesTableColumns, true) ? 'vote_status' : null;
+
+$elections = [];
+$selectedElection = null;
+$election_id = $_GET['election_id'] ?? null;
+$electionTitle = 'Election Results';
+$totalEligibleVoters = 0;
+$totalVotes = 0;
+$voteStatusCounts = [
+    'valid' => 0,
+    'spoiled' => 0,
+    'invalid' => 0,
+];
+$turnoutPercent = 0;
+$validVotePercent = 0;
+$spoiledVotePercent = 0;
+$invalidVotePercent = 0;
+$results = [];
+$resultsByPosition = [];
+$ledger = [];
+
 // Fetch elections
 try {
-    $stmt = $database->prepare("SELECT * FROM elections ORDER BY starts_at DESC");
+    $stmt = $database->prepare('SELECT * FROM elections ORDER BY ' . $electionOrderColumn . ' DESC');
     $stmt->execute();
-    $elections = $stmt->fetchAll();
+    $elections = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 } catch (Exception $e) {
     $elections = [];
 }
 
-// Determine election to show ledger for (query param or most recent)
-$election_id = $_GET['election_id'] ?? null;
+// Determine election to show ledger and results for (query param or most recent)
 if (!$election_id) {
     try {
-        $stmt = $database->prepare("SELECT id FROM elections WHERE status IN ('active','completed') ORDER BY starts_at DESC LIMIT 1");
+        $stmt = $database->prepare("SELECT id FROM elections WHERE status IN ('active','completed') ORDER BY {$electionOrderColumn} DESC LIMIT 1");
         $stmt->execute();
-        $row = $stmt->fetch();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $election_id = $row['id'] ?? null;
     } catch (Exception $e) {
         $election_id = null;
     }
 }
 
-// Fetch ledger votes for selected election and verify per-vote integrity
-$ledger = [];
 if ($election_id) {
+    try {
+        $stmt = $database->prepare('SELECT * FROM elections WHERE id = ? LIMIT 1');
+        $stmt->execute([$election_id]);
+        $selectedElection = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {
+        $selectedElection = null;
+    }
+}
+
+if ($selectedElection) {
+    $electionTitle = trim((string) ($selectedElection['title'] ?? $selectedElection['name'] ?? 'Election Results')) ?: 'Election Results';
+    $totalEligibleVoters = (int) ($selectedElection['total_eligible_voters'] ?? 0);
+}
+
+if ($election_id) {
+    $results = getElectionResults($database, $election_id);
+    if (!empty($results)) {
+        foreach ($results as $resultRow) {
+            $positionTitle = (string) ($resultRow['position_title'] ?? 'Unknown Position');
+            if (!isset($resultsByPosition[$positionTitle])) {
+                $resultsByPosition[$positionTitle] = [];
+            }
+            $resultsByPosition[$positionTitle][] = $resultRow;
+            $totalVotes += (int) ($resultRow['vote_count'] ?? 0);
+        }
+    }
+
+    try {
+        if ($voteStatusColumn) {
+            $stmt = $database->prepare("SELECT LOWER(COALESCE({$voteStatusColumn}, 'valid')) AS vote_status, COUNT(*) AS total FROM votes WHERE election_id = ? GROUP BY LOWER(COALESCE({$voteStatusColumn}, 'valid'))");
+            $stmt->execute([$election_id]);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $status = (string) ($row['vote_status'] ?? 'valid');
+                $voteStatusCounts[$status] = (int) ($row['total'] ?? 0);
+            }
+        } else {
+            $voteStatusCounts['valid'] = $totalVotes;
+        }
+    } catch (Exception $e) {
+        $voteStatusCounts['valid'] = $totalVotes;
+    }
+
+    $turnoutPercent = $totalEligibleVoters > 0 ? round(($totalVotes / $totalEligibleVoters) * 100, 1) : 0;
+    $validVotePercent = $totalVotes > 0 ? round(($voteStatusCounts['valid'] / $totalVotes) * 100, 1) : 0;
+    $spoiledVotePercent = $totalVotes > 0 ? round(($voteStatusCounts['spoiled'] / $totalVotes) * 100, 1) : 0;
+    $invalidVotePercent = $totalVotes > 0 ? round(($voteStatusCounts['invalid'] / $totalVotes) * 100, 1) : 0;
+
     try {
         $stmt = $database->prepare(
             "SELECT v.id, v.election_id, v.voter_profile_id, v.position_id, v.candidate_id, v.tx_hash, v.prev_hash, v.created_at,
@@ -46,7 +135,7 @@ if ($election_id) {
              ORDER BY v.created_at ASC, v.id ASC"
         );
         $stmt->execute([$election_id]);
-        $rows = $stmt->fetchAll();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         $expectedPrev = 'GENESIS';
         foreach ($rows as $r) {
@@ -68,6 +157,7 @@ if ($election_id) {
     }
 }
 
+// Fetch elections
 ?>
 <?php
 require_once '../includes/config.php';
@@ -79,20 +169,31 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Disposition: attachment; filename=election_results_' . date('Y-m-d') . '.csv');
     $output = fopen('php://output', 'w');
     
-    fputcsv($output, ['Election Results Summary']);
+    fputcsv($output, [$electionTitle . ' Summary']);
     fputcsv($output, ['Metric', 'Value']);
-    fputcsv($output, ['Voter Turnout', '68.4%']);
-    fputcsv($output, ['Valid Votes', '2847']);
-    fputcsv($output, ['Spoiled Votes', '32']);
-    fputcsv($output, ['Invalid Votes', '18']);
+    fputcsv($output, ['Election Title', $electionTitle]);
+    fputcsv($output, ['Voter Turnout', number_format($turnoutPercent, 1) . '%']);
+    fputcsv($output, ['Total Votes', number_format($totalVotes)]);
+    fputcsv($output, ['Valid Votes', number_format($voteStatusCounts['valid'])]);
+    fputcsv($output, ['Spoiled Votes', number_format($voteStatusCounts['spoiled'])]);
+    fputcsv($output, ['Invalid Votes', number_format($voteStatusCounts['invalid'])]);
     fputcsv($output, []);
     
-    fputcsv($output, ['Position', 'Candidate', 'Course/Year', 'Votes', 'Percentage']);
-    fputcsv($output, ['USC President', 'James Blanco', 'BS IT - 4A', '1194', '42.0%']);
-    fputcsv($output, ['USC President', 'Sarah Rodriguez', 'BSN - 4B', '1078', '38.0%']);
-    fputcsv($output, ['USC President', 'Maria Cruz', 'BSED - 3C', '575', '20.0%']);
-    fputcsv($output, ['Vice President', 'John Park', 'BSCS - 3A', '1563', '55.0%']);
-    fputcsv($output, ['Vice President', 'Angela Lopez', 'BSBA - 4B', '1284', '45.0%']);
+    fputcsv($output, ['Position', 'Candidate', 'Votes', 'Percentage']);
+    foreach ($resultsByPosition as $positionTitle => $candidates) {
+        $positionVotes = array_sum(array_map(static function ($candidateRow) {
+            return (int) ($candidateRow['vote_count'] ?? 0);
+        }, $candidates));
+
+        foreach ($candidates as $candidate) {
+            $candidateFirstName = trim((string) ($candidate['first_name'] ?? ''));
+            $candidateLastName = trim((string) ($candidate['last_name'] ?? ''));
+            $candidateFullName = trim($candidateFirstName . ' ' . $candidateLastName) ?: 'Unknown Candidate';
+            $candidateVotes = (int) ($candidate['vote_count'] ?? 0);
+            $candidatePercent = $positionVotes > 0 ? round(($candidateVotes / $positionVotes) * 100, 1) : 0;
+            fputcsv($output, [$positionTitle, $candidateFullName, $candidateVotes, $candidatePercent . '%']);
+        }
+    }
     
     fclose($output);
     exit;
@@ -188,18 +289,25 @@ $pageTitle = 'Live Results';
                     <h3 class="text-xl font-black text-navy mb-6">Voter Turnout</h3>
                     <div class="flex items-end justify-between">
                         <div>
-                            <p class="text-5xl font-black text-navy">68.4%</p>
-                            <p class="text-sm text-slate-600 mt-2">2,847 votes cast out of 4,162 registered voters</p>
+                            <p class="text-5xl font-black text-navy"><?php echo number_format($turnoutPercent, 1); ?>%</p>
+                            <p class="text-sm text-slate-600 mt-2">
+                                <?php echo number_format($totalVotes); ?> votes cast
+                                <?php if ($totalEligibleVoters > 0): ?>
+                                    out of <?php echo number_format($totalEligibleVoters); ?> eligible voters
+                                <?php else: ?>
+                                    for the current election
+                                <?php endif; ?>
+                            </p>
                         </div>
                         <div class="text-right">
                             <div class="w-24 h-24">
                                 <div class="relative w-full h-full">
                                     <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
                                         <circle cx="50" cy="50" r="45" fill="none" stroke="#e2e8f0" stroke-width="8"/>
-                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#FFC107" stroke-width="8" stroke-dasharray="245.04" stroke-dashoffset="79.27" stroke-linecap="round"/>
+                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#FFC107" stroke-width="8" stroke-dasharray="245.04" stroke-dashoffset="<?php echo number_format(245.04 - (245.04 * max(0, min(100, $turnoutPercent)) / 100), 2, '.', ''); ?>" stroke-linecap="round"/>
                                     </svg>
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <span class="font-black text-sm text-navy">68.4%</span>
+                                        <span class="font-black text-sm text-navy"><?php echo number_format($turnoutPercent, 1); ?>%</span>
                                     </div>
                                 </div>
                             </div>
@@ -214,29 +322,32 @@ $pageTitle = 'Live Results';
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-bold text-navy">Valid Votes</span>
-                                <span class="font-black text-navy">2,847</span>
+                                <span class="font-black text-navy"><?php echo number_format($voteStatusCounts['valid']); ?></span>
                             </div>
                             <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                <div class="bg-emerald-500 h-full w-[98%]"></div>
+                                <div class="bg-emerald-500 h-full" style="width: <?php echo number_format($validVotePercent, 1); ?>%"></div>
                             </div>
+                            <p class="text-xs text-slate-500 mt-1"><?php echo number_format($validVotePercent, 1); ?>% of total votes</p>
                         </div>
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-bold text-navy">Spoiled Votes</span>
-                                <span class="font-black text-navy">32</span>
+                                <span class="font-black text-navy"><?php echo number_format($voteStatusCounts['spoiled']); ?></span>
                             </div>
                             <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                <div class="bg-red-500 h-full w-[1%]"></div>
+                                <div class="bg-red-500 h-full" style="width: <?php echo number_format($spoiledVotePercent, 1); ?>%"></div>
                             </div>
+                            <p class="text-xs text-slate-500 mt-1"><?php echo number_format($spoiledVotePercent, 1); ?>% of total votes</p>
                         </div>
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-bold text-navy">Invalid Votes</span>
-                                <span class="font-black text-navy">18</span>
+                                <span class="font-black text-navy"><?php echo number_format($voteStatusCounts['invalid']); ?></span>
                             </div>
                             <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                <div class="bg-yellow-500 h-full w-[0.6%]"></div>
+                                <div class="bg-yellow-500 h-full" style="width: <?php echo number_format($invalidVotePercent, 1); ?>%"></div>
                             </div>
+                            <p class="text-xs text-slate-500 mt-1"><?php echo number_format($invalidVotePercent, 1); ?>% of total votes</p>
                         </div>
                     </div>
                 </div>
@@ -244,117 +355,55 @@ $pageTitle = 'Live Results';
 
             <!-- Results by Position -->
             <div class="space-y-8">
-                <!-- USC President -->
-                <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h3 class="text-xl font-black text-navy mb-6">USC President Results</h3>
-                    <div class="space-y-6">
-                        <!-- Candidate 1 -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">JB</div>
-                                <div>
-                                    <p class="font-bold text-navy">James Blanco</p>
-                                    <p class="text-xs text-slate-500">BS IT - 4A</p>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-blue-400 to-blue-600 h-full" style="width: 42%"></div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-6">
-                                <p class="font-black text-navy text-lg">1,194</p>
-                                <p class="text-xs text-slate-500">42.0%</p>
-                            </div>
-                        </div>
-
-                        <!-- Candidate 2 -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold">SR</div>
-                                <div>
-                                    <p class="font-bold text-navy">Sarah Rodriguez</p>
-                                    <p class="text-xs text-slate-500">BSN - 4B</p>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-purple-400 to-purple-600 h-full" style="width: 38%"></div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-6">
-                                <p class="font-black text-navy text-lg">1,078</p>
-                                <p class="text-xs text-slate-500">38.0%</p>
-                            </div>
-                        </div>
-
-                        <!-- Candidate 3 -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold">MC</div>
-                                <div>
-                                    <p class="font-bold text-navy">Maria Cruz</p>
-                                    <p class="text-xs text-slate-500">BSED - 3C</p>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-green-400 to-green-600 h-full" style="width: 20%"></div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-6">
-                                <p class="font-black text-navy text-lg">575</p>
-                                <p class="text-xs text-slate-500">20.0%</p>
-                            </div>
-                        </div>
+                <?php if (empty($resultsByPosition)): ?>
+                    <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                        <p class="text-slate-400 text-center py-8">No results available yet.</p>
                     </div>
-                </div>
-
-                <!-- Vice President -->
-                <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h3 class="text-xl font-black text-navy mb-6">Vice President Results</h3>
-                    <div class="space-y-6">
-                        <!-- Candidate 1 -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold">JP</div>
-                                <div>
-                                    <p class="font-bold text-navy">John Park</p>
-                                    <p class="text-xs text-slate-500">BSCS - 3A</p>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-teal-400 to-teal-600 h-full" style="width: 55%"></div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-6">
-                                <p class="font-black text-navy text-lg">1,563</p>
-                                <p class="text-xs text-slate-500">55.0%</p>
-                            </div>
-                        </div>
-
-                        <!-- Candidate 2 -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold">AL</div>
-                                <div>
-                                    <p class="font-bold text-navy">Angela Lopez</p>
-                                    <p class="text-xs text-slate-500">BSBA - 4B</p>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-orange-400 to-orange-600 h-full" style="width: 45%"></div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-6">
-                                <p class="font-black text-navy text-lg">1,284</p>
-                                <p class="text-xs text-slate-500">45.0%</p>
+                <?php else: ?>
+                    <?php foreach ($resultsByPosition as $positionTitle => $candidates): ?>
+                        <?php $positionVotes = array_sum(array_map(static function ($candidateRow) { return (int) ($candidateRow['vote_count'] ?? 0); }, $candidates)); ?>
+                        <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                            <h3 class="text-xl font-black text-navy mb-6"><?php echo htmlspecialchars($positionTitle); ?> Results</h3>
+                            <div class="space-y-6">
+                                <?php foreach ($candidates as $candidate): ?>
+                                    <?php
+                                        $candidateVotes = (int) ($candidate['vote_count'] ?? 0);
+                                        $candidatePercent = $positionVotes > 0 ? ($candidateVotes / $positionVotes * 100) : 0;
+                                        $candidateFirstName = trim((string) ($candidate['first_name'] ?? ''));
+                                        $candidateLastName = trim((string) ($candidate['last_name'] ?? ''));
+                                        $candidateFullName = trim($candidateFirstName . ' ' . $candidateLastName) ?: 'Unknown Candidate';
+                                        $candidateInitials = getCandidateInitials($candidateFirstName, $candidateLastName, 'C');
+                                        $candidateImageUrl = trim((string) ($candidate['image_url'] ?? ''));
+                                    ?>
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div class="flex items-center gap-4 flex-1 min-w-0">
+                                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold overflow-hidden flex items-center justify-center flex-shrink-0">
+                                                <?php if ($candidateImageUrl !== ''): ?>
+                                                    <img src="<?php echo htmlspecialchars('../' . ltrim($candidateImageUrl, '/')); ?>" alt="<?php echo htmlspecialchars($candidateFullName); ?>" class="w-full h-full object-cover">
+                                                <?php else: ?>
+                                                    <?php echo htmlspecialchars($candidateInitials); ?>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="font-bold text-navy truncate"><?php echo htmlspecialchars($candidateFullName); ?></p>
+                                                <p class="text-xs text-slate-500 uppercase">Candidate</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex-1 px-3">
+                                            <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                                                <div class="bg-gradient-to-r from-royal to-gold h-full" style="width: <?php echo number_format($candidatePercent, 1); ?>%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right ml-2 min-w-[88px]">
+                                            <p class="font-black text-navy text-lg"><?php echo number_format($candidateVotes); ?></p>
+                                            <p class="text-xs text-slate-500"><?php echo number_format($candidatePercent, 1); ?>%</p>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
 
             <!-- Certification Section (Print Only) -->

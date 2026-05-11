@@ -1,5 +1,11 @@
 <?php
 require_once '../includes/config.php';
+
+/** @var PDO $pdo */
+if (!$pdo) {
+    die('Database connection failed. Please check your configuration.');
+}
+
 requireRole('admin');
 $role = 'admin';
 $activePage = 'dashboard';

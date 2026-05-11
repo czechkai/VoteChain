@@ -1,9 +1,38 @@
 <?php
 require_once '../includes/config.php';
+
+/** @var PDO $pdo */
+if (!$pdo) {
+    die('Database connection failed. Please check your configuration.');
+}
+
 requireRole('admin');
 $role = 'admin';
 $activePage = 'calendar';
 $pageTitle = 'Election Calendar';
+
+// Fetch elections from database to sync the calendar
+try {
+    $stmt = $pdo->query("SELECT * FROM elections ORDER BY starts_at ASC");
+    $elections = $stmt->fetchAll();
+} catch (Exception $e) {
+    $elections = [];
+}
+
+// Calendar Calculation Logic
+$targetDate = !empty($elections) ? $elections[0]['starts_at'] : date('Y-m-d');
+$month = (int)date('m', strtotime($targetDate));
+$year = (int)date('Y', strtotime($targetDate));
+$daysInMonth = (int)date('t', strtotime("$year-$month-01"));
+$firstDayOffset = (int)date('N', strtotime("$year-$month-01")) - 1; // 0 (Mon) to 6 (Sun)
+
+$eventsByDay = [];
+foreach ($elections as $e) {
+    if (date('m-Y', strtotime($e['starts_at'])) === date('m-Y', strtotime($targetDate))) {
+        $d = (int)date('j', strtotime($e['starts_at']));
+        $eventsByDay[$d][] = $e;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,9 +66,10 @@ $pageTitle = 'Election Calendar';
         <main class="p-8 flex-1">
             <!-- Calendar Header -->
             <div class="flex justify-between items-center mb-8">
+                <?php $displayDate = !empty($elections) ? date('F Y', strtotime($elections[0]['starts_at'])) : date('F Y'); ?>
                 <div>
-                    <h1 class="text-3xl font-black text-navy">May 2026</h1>
-                    <p class="text-slate-600">Election Period & Important Dates</p>
+                    <h1 class="text-3xl font-black text-navy"><?php echo $displayDate; ?></h1>
+                    <p class="text-slate-600">Syncing with active database schedules</p>
                 </div>
                 <div class="flex gap-4">
                     <button class="w-10 h-10 rounded-lg bg-slate-100 text-navy hover:bg-slate-200 transition">
@@ -67,77 +97,38 @@ $pageTitle = 'Election Calendar';
 
                 <!-- Calendar Dates -->
                 <div class="grid grid-cols-7 gap-2">
-                    <!-- Previous month dates (grayed out) -->
-                    <div class="aspect-square flex items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">28</div>
-                    <div class="aspect-square flex items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">29</div>
-                    <div class="aspect-square flex items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">30</div>
-                    <div class="aspect-square flex items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">1</div>
+                    <?php
+                    // Render Empty Slots for Previous Month
+                    for ($i = 0; $i < $firstDayOffset; $i++) {
+                        echo '<div class="aspect-square flex items-center justify-center text-slate-200 font-bold text-sm bg-slate-50/50 rounded-lg"></div>';
+                    }
 
-                    <!-- May dates with events -->
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-emerald-400 bg-emerald-50 cursor-pointer hover:shadow-md transition" data-event="Application Start">
-                        <span class="font-black text-navy">2</span>
-                        <span class="text-[8px] text-emerald-600 font-bold">APP</span>
-                    </div>
+                    // Render Current Month Days
+                    for ($day = 1; $day <= $daysInMonth; $day++) {
+                        $hasEvent = isset($eventsByDay[$day]);
+                        $eventClass = '';
+                        $label = '';
+                        
+                        if ($hasEvent) {
+                            $status = strtolower($eventsByDay[$day][0]['status']);
+                            if ($status === 'active') {
+                                $eventClass = 'border-2 border-emerald-400 bg-emerald-50';
+                                $label = '<span class="text-[8px] text-emerald-600 font-bold">LIVE</span>';
+                            } elseif ($status === 'scheduled') {
+                                $eventClass = 'border-2 border-amber-400 bg-amber-50';
+                                $label = '<span class="text-[8px] text-amber-600 font-bold">POLL</span>';
+                            } else {
+                                $eventClass = 'border-2 border-slate-400 bg-slate-50';
+                                $label = '<span class="text-[8px] text-slate-600 font-bold">DONE</span>';
+                            }
+                        }
 
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">3</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">4</div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-blue-400 bg-blue-50 cursor-pointer hover:shadow-md transition" data-event="Last Day Filing">
-                        <span class="font-black text-navy">5</span>
-                        <span class="text-[8px] text-blue-600 font-bold">DEADLINE</span>
-                    </div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">6</div>
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-purple-400 bg-purple-50 cursor-pointer hover:shadow-md transition" data-event="Campaign Start">
-                        <span class="font-black text-navy">7</span>
-                        <span class="text-[8px] text-purple-600 font-bold">CAMP</span>
-                    </div>
-
-                    <!-- Rest of May -->
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">8</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">9</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">10</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition" style="background-color: #f8fafc; border: 2px dashed #94a3b8;">11</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">12</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">13</div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-red-400 bg-red-50 cursor-pointer hover:shadow-md transition" data-event="Election Day">
-                        <span class="font-black text-navy">14</span>
-                        <span class="text-[8px] text-red-600 font-bold">VOTE</span>
-                    </div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">15</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">16</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">17</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">18</div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-gold bg-yellow-50 cursor-pointer hover:shadow-md transition" data-event="Proclamation">
-                        <span class="font-black text-navy">19</span>
-                        <span class="text-[8px] text-amber-600 font-bold">PROC</span>
-                    </div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-slate-400 bg-slate-50 cursor-pointer hover:shadow-md transition" data-event="Legislative Elections">
-                        <span class="font-black text-navy">20</span>
-                        <span class="text-[8px] text-slate-600 font-bold">LEG</span>
-                    </div>
-
-                    <!-- Rest -->
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">21</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">22</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">23</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">24</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">25</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">26</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">27</div>
-
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">28</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">29</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">30</div>
-                    <div class="aspect-square flex flex-col items-center justify-center font-bold text-sm text-navy rounded-lg hover:bg-slate-50 transition">31</div>
-                    <!-- Next month -->
-                    <div class="aspect-square flex flex-col items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">1</div>
-                    <div class="aspect-square flex flex-col items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">2</div>
-                    <div class="aspect-square flex flex-col items-center justify-center text-slate-300 font-bold text-sm bg-slate-50 rounded-lg">3</div>
+                        echo '<div class="aspect-square flex flex-col items-center justify-center rounded-lg font-bold text-sm text-navy hover:bg-slate-100 transition cursor-pointer ' . $eventClass . '">';
+                        echo '<span>' . $day . '</span>';
+                        echo $label;
+                        echo '</div>';
+                    }
+                    ?>
                 </div>
             </div>
 
@@ -147,28 +138,26 @@ $pageTitle = 'Election Calendar';
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-emerald-400 rounded"></div>
                         <div>
-                            <p class="font-bold text-navy">Application Period</p>
-                            <p class="text-xs text-slate-600">April 29 - May 5</p>
+                            <p class="font-bold text-navy">Active Elections</p>
+                            <p class="text-xs text-slate-600">Polls currently open</p>
                         </div>
                     </div>
                 </div>
-
-                <div data-admin-search-item class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                <div data-admin-search-item class="bg-amber-50 p-4 rounded-xl border border-amber-200">
                     <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 bg-purple-400 rounded"></div>
+                        <div class="w-6 h-6 bg-amber-400 rounded"></div>
                         <div>
-                            <p class="font-bold text-navy">Campaign Period</p>
-                            <p class="text-xs text-slate-600">May 6 - May 13</p>
+                            <p class="font-bold text-navy">Scheduled</p>
+                            <p class="text-xs text-slate-600">Upcoming events</p>
                         </div>
                     </div>
                 </div>
-
-                <div data-admin-search-item class="bg-red-50 p-4 rounded-xl border border-red-200">
+                <div data-admin-search-item class="bg-slate-100 p-4 rounded-xl border border-slate-200">
                     <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 bg-red-400 rounded"></div>
+                        <div class="w-6 h-6 bg-slate-400 rounded"></div>
                         <div>
-                            <p class="font-bold text-navy">Election Day</p>
-                            <p class="text-xs text-slate-600">May 14, 2026</p>
+                            <p class="font-bold text-navy">Completed</p>
+                            <p class="text-xs text-slate-600">Past elections</p>
                         </div>
                     </div>
                 </div>
@@ -178,74 +167,36 @@ $pageTitle = 'Election Calendar';
             <div data-admin-search-item class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                 <h3 class="text-2xl font-black text-navy mb-8">Timeline of Events</h3>
                 <div class="space-y-6">
-                    <div class="flex gap-6">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-check"></i>
+                    <?php if (empty($elections)): ?>
+                        <div class="text-center py-10">
+                            <p class="text-slate-400 font-bold uppercase text-xs tracking-widest">No scheduled events found</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($elections as $election): ?>
+                            <div class="flex gap-6">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-12 h-12 bg-royal text-white rounded-full flex items-center justify-center font-bold shadow-lg shadow-royal/20">
+                                        <i class="fa-solid fa-calendar-check"></i>
+                                    </div>
+                                    <div class="w-1 h-16 bg-slate-100"></div>
+                                </div>
+                                <div>
+                                    <p class="font-black text-gold text-sm uppercase tracking-wide">
+                                        <?php echo date('M d, Y', strtotime($election['starts_at'])); ?> 
+                                        <?php if ($election['ends_at']): ?>
+                                            — <?php echo date('M d, Y', strtotime($election['ends_at'])); ?>
+                                        <?php endif; ?>
+                                    </p>
+                                    <h4 class="text-lg font-black text-navy"><?php echo htmlspecialchars($election['title']); ?></h4>
+                                    <p class="text-slate-500 text-sm leading-relaxed"><?php echo htmlspecialchars($election['description']); ?></p>
+                                    <span class="inline-block mt-2 text-[10px] font-black px-3 py-1 rounded-lg uppercase border 
+                                        <?php echo strtolower($election['status']) === 'active' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-600 bg-amber-50 border-amber-100'; ?>">
+                                        <?php echo htmlspecialchars($election['status']); ?>
+                                    </span>
+                                </div>
                             </div>
-                            <div class="w-1 h-16 bg-slate-200"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-gold text-sm">APRIL 29 - MAY 5</p>
-                            <h4 class="text-lg font-black text-navy">Application Period</h4>
-                            <p class="text-slate-600 text-sm">Candidates submit applications and required documents for candidacy filing.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-megaphone"></i>
-                            </div>
-                            <div class="w-1 h-16 bg-slate-200"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-gold text-sm">MAY 6 - MAY 13</p>
-                            <h4 class="text-lg font-black text-navy">Campaign Period</h4>
-                            <p class="text-slate-600 text-sm">Candidates present platforms and campaign to the student body.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-vote-yea"></i>
-                            </div>
-                            <div class="w-1 h-16 bg-slate-200"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-gold text-sm">MAY 14</p>
-                            <h4 class="text-lg font-black text-navy">Election Day</h4>
-                            <p class="text-slate-600 text-sm">Students cast their votes for university leaders throughout the day.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 bg-gold text-navy rounded-full flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-champagne-glasses"></i>
-                            </div>
-                            <div class="w-1 h-16 bg-slate-200"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-gold text-sm">MAY 19</p>
-                            <h4 class="text-lg font-black text-navy">Proclamation of Winners</h4>
-                            <p class="text-slate-600 text-sm">Official announcement of elected candidates and winners.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6">
-                        <div class="flex flex-col items-center">
-                            <div class="w-12 h-12 bg-slate-500 text-white rounded-full flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-landmark"></i>
-                            </div>
-                        </div>
-                        <div>
-                            <p class="font-black text-gold text-sm">MAY 20</p>
-                            <h4 class="text-lg font-black text-navy">Legislative & Judicial Elections</h4>
-                            <p class="text-slate-600 text-sm">Secondary elections for senate and judicial positions.</p>
-                        </div>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </main>
