@@ -33,6 +33,7 @@ function adminResultsFirstAvailableColumn(array $columns, array $preferredColumn
 $electionsTableColumns = adminResultsTableColumns($database, 'elections');
 $votesTableColumns = adminResultsTableColumns($database, 'votes');
 $electionOrderColumn = adminResultsFirstAvailableColumn($electionsTableColumns, ['start_date', 'starts_at', 'created_at'], 'created_at');
+$col_end = adminResultsFirstAvailableColumn($electionsTableColumns, ['end_date', 'ends_at'], 'created_at');
 $voteStatusColumn = in_array('vote_status', $votesTableColumns, true) ? 'vote_status' : null;
 
 $elections = [];
@@ -40,6 +41,8 @@ $selectedElection = null;
 $election_id = $_GET['election_id'] ?? null;
 $electionTitle = 'Election Results';
 $totalEligibleVoters = 0;
+$isLive = false;
+$deadlineTs = 0;
 $totalVotes = 0;
 $voteStatusCounts = [
     'valid' => 0,
@@ -88,6 +91,9 @@ if ($election_id) {
 if ($selectedElection) {
     $electionTitle = trim((string) ($selectedElection['title'] ?? $selectedElection['name'] ?? 'Election Results')) ?: 'Election Results';
     $totalEligibleVoters = (int) ($selectedElection['total_eligible_voters'] ?? 0);
+    $status = strtolower($selectedElection['status'] ?? '');
+    $isLive = ($status === 'active');
+    $deadlineTs = isset($selectedElection[$col_end]) ? strtotime($selectedElection[$col_end]) : 0;
 }
 
 if ($election_id) {
@@ -266,19 +272,24 @@ $pageTitle = 'Live Results';
             </div>
 
             <!-- Live Status -->
-            <div class="mb-8 p-6 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-[2rem] border border-emerald-200 flex items-center justify-between no-print">
+            <div class="mb-8 p-6 bg-gradient-to-r <?php echo $isLive ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-slate-50 to-slate-100 border-slate-200'; ?> rounded-[2rem] border flex items-center justify-between no-print">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white animate-pulse">
-                        <i class="fa-solid fa-circle-dot"></i>
+                    <div class="w-12 h-12 <?php echo $isLive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'; ?> rounded-full flex items-center justify-center text-white">
+                        <i class="fa-solid <?php echo $isLive ? 'fa-circle-dot' : 'fa-check-double'; ?>"></i>
                     </div>
                     <div>
-                        <p class="font-black text-emerald-700 text-lg">ELECTION LIVE</p>
-                        <p class="text-sm text-emerald-600">Votes are being counted in real-time</p>
+                        <p class="font-black <?php echo $isLive ? 'text-emerald-700' : 'text-slate-700'; ?> text-lg"><?php echo $isLive ? 'ELECTION LIVE' : 'ELECTION COMPLETED'; ?></p>
+                        <p class="text-sm <?php echo $isLive ? 'text-emerald-600' : 'text-slate-500'; ?>"><?php echo $isLive ? 'Votes are being counted in real-time' : 'Final results are now available'; ?></p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-3xl font-black text-emerald-700">12:34:56</p>
-                    <p class="text-sm text-emerald-600">Time remaining</p>
+                    <?php if ($isLive && $deadlineTs > time()): ?>
+                        <p id="liveCountdown" class="text-3xl font-black text-emerald-700" data-expire="<?php echo $deadlineTs; ?>">--:--:--</p>
+                        <p class="text-sm text-emerald-600">Time remaining</p>
+                    <?php else: ?>
+                        <p class="text-3xl font-black text-slate-700">FINISHED</p>
+                        <p class="text-sm text-slate-500">Voting closed</p>
+                    <?php endif; ?>
                 </div>
             </div>
 

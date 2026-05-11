@@ -294,3 +294,7 @@ LINE 7:             WHERE c.profile_id = $1 OR c.user_id = $2
 [11-May-2026 04:40:51 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp2\htdocs\VoteChain\student\results.php on line 155
 [11-May-2026 04:40:51 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\student\results.php on line 155
 >>>>>>> Stashed changes
+[11-May-2026 05:00:31 Europe/Berlin] PHP Warning:  Undefined array key "description" in C:\xampp2\htdocs\VoteChain\admin\calendar.php on line 191
+[11-May-2026 05:00:31 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\admin\calendar.php on line 191
+[11-May-2026 05:00:31 Europe/Berlin] PHP Warning:  Undefined array key "description" in C:\xampp2\htdocs\VoteChain\admin\calendar.php on line 191
+[11-May-2026 05:00:31 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\admin\calendar.php on line 191
