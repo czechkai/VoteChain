@@ -193,7 +193,13 @@ if (isset($_GET['success'])) {
                                             <i class="fa-solid fa-check"></i>
                                         </div>
                                         <div class="flex items-center gap-5">
-                                            <div class="w-20 h-20 rounded-3xl bg-slate-100 overflow-hidden border-2 border-white shadow-sm"></div>
+                                            <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-400 to-navy text-white overflow-hidden border-2 border-white shadow-sm flex items-center justify-center font-bold text-lg flex-shrink-0">
+                                                <?php if (!empty($candidate['image_url'])): ?>
+                                                    <img src="<?php echo htmlspecialchars((string) ('../' . $candidate['image_url'] ?? '')); ?>" alt="<?php echo htmlspecialchars($candidate['first_name'] . ' ' . $candidate['last_name']); ?>" class="w-full h-full object-cover">
+                                                <?php else: ?>
+                                                    <?php echo htmlspecialchars(getCandidateInitials($candidate['first_name'] ?? '', $candidate['last_name'] ?? '', 'C')); ?>
+                                                <?php endif; ?>
+                                            </div>
                                             <div>
                                                 <h3 class="text-lg font-extrabold text-navy group-hover:text-royal transition-colors">
                                                     <?php echo htmlspecialchars($candidate['first_name'] . ' ' . $candidate['last_name']); ?>

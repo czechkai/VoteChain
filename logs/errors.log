@@ -174,3 +174,54 @@ Stack trace:
 [10-May-2026 19:28:13 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 149
 [10-May-2026 19:28:20 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp\htdocs\VoteChain\student\results.php on line 149
 [10-May-2026 19:28:20 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\VoteChain\student\results.php on line 149
+[10-May-2026 20:29:53 Europe/Berlin] Admin candidate list error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "uploaded_at" does not exist
+LINE 1: ...cuments WHERE candidate_id IN ($1,$2,$3) ORDER BY uploaded_a...
+                                                             ^
+[10-May-2026 20:30:05 Europe/Berlin] Admin candidate list error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "uploaded_at" does not exist
+LINE 1: ...cuments WHERE candidate_id IN ($1,$2,$3) ORDER BY uploaded_a...
+                                                             ^
+[10-May-2026 20:30:07 Europe/Berlin] Admin candidate list error: SQLSTATE[42703]: Undefined column: 7 ERROR:  column "uploaded_at" does not exist
+LINE 1: ...cuments WHERE candidate_id IN ($1,$2,$3) ORDER BY uploaded_a...
+                                                             ^
+[10-May-2026 20:53:04 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: Unknown host
+[11-May-2026 01:22:51 Europe/Berlin] Database Error: SQLSTATE[08006] [7] could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: Unknown host
+[11-May-2026 02:09:38 Europe/Berlin] Error fetching election data: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 14:                 COALESCE(c.image_url, c.profile_photo, '') a...
+                                               ^
+[11-May-2026 02:09:38 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp2\htdocs\VoteChain\student\results.php on line 150
+[11-May-2026 02:09:38 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\student\results.php on line 150
+[11-May-2026 02:09:43 Europe/Berlin] Error fetching election data: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 14:                 COALESCE(c.image_url, c.profile_photo, '') a...
+                                               ^
+[11-May-2026 02:09:43 Europe/Berlin] PHP Warning:  Undefined array key "name" in C:\xampp2\htdocs\VoteChain\student\results.php on line 150
+[11-May-2026 02:09:43 Europe/Berlin] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp2\htdocs\VoteChain\student\results.php on line 150
+[11-May-2026 02:25:11 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:25:11 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:30:56 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:30:56 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:31:03 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:31:03 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:35:34 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:35:34 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:40:40 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^
+[11-May-2026 02:40:40 Europe/Berlin] Error fetching candidates: SQLSTATE[42703]: Undefined column: 7 ERROR:  column c.profile_photo does not exist
+LINE 3:                        COALESCE(c.image_url, c.profile_photo...
+                                                     ^

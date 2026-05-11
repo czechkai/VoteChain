@@ -22,7 +22,24 @@ if (isset($_GET['success'])) {
     $alertMessage = 'Filing submitted successfully. Your role stays as student until admin approval.';
 } elseif (isset($_GET['error'])) {
     $alertType = 'error';
-    $alertMessage = 'Filing failed. Please check your inputs and try again.';
+    $errorCode = $_GET['error'] ?? 'server';
+    $errorDetails = $_SESSION['filing_error_details'] ?? '';
+    
+    if ($errorCode === 'docs') {
+        $alertMessage = 'Filing failed: Not all 5 required documents were uploaded. Please upload all documents.';
+    } elseif ($errorCode === 'missing') {
+        $alertMessage = 'Filing failed: Please select an Election and Position.';
+    } elseif ($errorCode === 'type') {
+        $alertMessage = 'Filing failed: Invalid file type. Only PDF, DOC, DOCX, JPG, JPEG, PNG allowed.';
+    } elseif ($errorCode === 'upload') {
+        $alertMessage = 'Filing failed: Could not upload file to server.';
+    } elseif ($errorCode === 'duplicate') {
+        $alertMessage = 'Filing failed: You have already filed for this position in this election.';
+    } else {
+        $alertMessage = 'Filing failed: ' . ($errorDetails ? htmlspecialchars($errorDetails) : 'Please check your inputs and try again.');
+    }
+    
+    unset($_SESSION['filing_error_details']);
 } elseif (isset($_GET['application'])) {
     $alertType = 'success';
     $alertMessage = 'Candidate application mode enabled. Submit filing documents for admin review.';
@@ -142,6 +159,32 @@ if (isset($_GET['success'])) {
 
         <!-- Document Upload Grid -->
         <form id="filingForm" class="space-y-6" method="POST" action="filing_handler.php" enctype="multipart/form-data">
+            <!-- Profile Photo Section -->
+            <div class="bg-gradient-to-br from-blue-50 to-slate-50 p-8 rounded-[2rem] border border-blue-200 shadow-sm">
+                <div class="flex items-start gap-6">
+                    <div class="flex-1">
+                        <h4 class="text-lg font-extrabold text-navy mb-2">Candidate Profile Photo</h4>
+                        <p class="text-slate-600 text-sm mb-4">Upload a professional photo for your candidate profile. This will be displayed to voters on the ballot and other campaign materials.</p>
+                        <p class="text-xs text-slate-500 mb-4">✓ JPG, PNG, or WebP format | ✓ Recommended: 500x500px or larger | ✓ Professional headshot preferred</p>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div id="profilePhotoPreview" class="w-32 h-32 bg-slate-200 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden">
+                            <div class="text-center text-slate-500">
+                                <i class="fa-solid fa-image text-3xl mb-2 block"></i>
+                                <p class="text-xs font-bold">No image</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <label class="cursor-pointer block mt-6">
+                    <input type="file" id="profilePhoto" name="profile_photo" class="file-input-hidden" accept=".jpg,.jpeg,.png,.webp" onchange="handleProfilePhotoUpload(this)">
+                    <div class="w-full md:w-64 py-3 bg-royal text-white rounded-xl font-bold text-sm hover:bg-navy transition text-center inline-flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-camera"></i>Choose Profile Photo
+                    </div>
+                </label>
+                <p id="profilePhotoFilename" class="text-xs text-slate-500 mt-3 hidden"></p>
+            </div>
+
             <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                 <h4 class="text-lg font-extrabold text-navy mb-4">Election & Position</h4>
                 <div class="grid md:grid-cols-2 gap-4">
@@ -354,18 +397,59 @@ if (isset($_GET['success'])) {
             document.getElementById('progressBar').style.width = percentage + '%';
         }
 
+        function handleProfilePhotoUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const filenameEl = document.getElementById('profilePhotoFilename');
+            filenameEl.textContent = `✓ ${file.name} selected (${(file.size / 1024).toFixed(2)} KB)`;
+            filenameEl.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const preview = document.getElementById('profilePhotoPreview');
+                preview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;" alt="Profile preview">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
         document.getElementById('filingForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+            // Verify election and position are selected
+            const electionId = document.querySelector('select[name="election_id"]').value;
+            const positionId = document.querySelector('select[name="position_id"]').value;
             
+            if (!electionId) {
+                e.preventDefault();
+                alert('Please select an Election');
+                return;
+            }
+            
+            if (!positionId) {
+                e.preventDefault();
+                alert('Please select a Position');
+                return;
+            }
+            
+            // Check all 5 required documents
             const docs = ['cert-candidacy', 'cert-registration', 'report-grades', 'good-moral', 'recommendation'];
-            const uploaded = docs.filter(doc => document.getElementById(doc).files.length > 0).length;
+            const docLabels = {
+                'cert-candidacy': 'Certificate of Candidacy',
+                'cert-registration': 'Certificate of Registration',
+                'report-grades': 'Report of Grades',
+                'good-moral': 'Good Moral Character',
+                'recommendation': 'Recommendation Letter'
+            };
             
-            if (uploaded === 0) {
-                alert('Please upload at least one document');
+            const uploaded = docs.filter(doc => document.getElementById(doc).files.length > 0).length;
+            const missing = docs.filter(doc => document.getElementById(doc).files.length === 0).map(doc => docLabels[doc]);
+
+            if (uploaded !== 5) {
+                e.preventDefault();
+                alert('All 5 documents are required:\n\n' + missing.join('\n') + '\n\nPlease upload all required documents before submitting.');
                 return;
             }
 
-            alert(`Filing submitted with ${uploaded} document(s). Your application is under review.`);
+            document.querySelector('button[type="submit"]')?.setAttribute('disabled', 'disabled');
         });
 
         window.addEventListener('load', updateProgress);

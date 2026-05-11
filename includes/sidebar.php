@@ -10,6 +10,27 @@ if ($role === 'admin') {
     $logoInitials = 'CH';
 }
 
+// Calculate pending candidate count for admin
+$pendingCandidateCount = 0;
+if ($role === 'admin' && isset($pdo) && $pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = ?");
+        $stmt->execute(['candidates']);
+        $columns = array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        
+        $statusColumn = in_array('status', $columns, true)
+            ? 'status'
+            : (in_array('filing_status', $columns, true) ? 'filing_status' : null);
+        
+        if ($statusColumn) {
+            $countStmt = $pdo->query("SELECT COUNT(*) FROM candidates WHERE {$statusColumn} IS NULL OR LOWER(COALESCE({$statusColumn}, '')) = 'pending'");
+            $pendingCandidateCount = (int) $countStmt->fetchColumn();
+        }
+    } catch (Exception $e) {
+        error_log('Sidebar pending count error: ' . $e->getMessage());
+    }
+}
+
 $activeLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/10 border-l-4 border-gold text-white font-bold transition-all group';
 $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 font-semibold transition-all group';
 ?>
@@ -56,7 +77,7 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
                 <a href="/votechain/admin/candidate.php" class="<?php echo $activePage === 'candidate' ? $activeLinkClass : $inactiveLinkClass; ?>">
                     <i class="fa-solid fa-users-gear w-5"></i>
                     <span>Candidate Apps</span>
-                    <span class="ml-auto bg-gold text-navy text-[10px] px-2 py-0.5 rounded-full font-black">12</span>
+                    <span id="adminCandidateAppsBadge" class="ml-auto bg-gold text-navy text-[10px] px-2 py-0.5 rounded-full font-black"><?php echo $pendingCandidateCount; ?></span>
                 </a>
 
                 <a href="/votechain/admin/election.php" class="<?php echo $activePage === 'election' ? $activeLinkClass : $inactiveLinkClass; ?>">
@@ -85,17 +106,17 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
             <?php elseif ($role === 'candidate'): ?>
                 <!-- Candidate Navigation -->
                 <a href="/votechain/candidate/dashboard.php" class="<?php echo $activePage === 'dashboard' ? $activeLinkClass : $inactiveLinkClass; ?>">
-                    <i class="fa-solid fa-chart-pie w-5"></i>
+                    <i class="fa-solid fa-chart-line w-5"></i>
                     <span>Dashboard</span>
                 </a>
 
                 <a href="/votechain/candidate/campaign.php" class="<?php echo $activePage === 'campaign' ? $activeLinkClass : $inactiveLinkClass; ?>">
-                    <i class="fa-solid fa-megaphone w-5"></i>
+                    <i class="fa-solid fa-bullhorn w-5"></i>
                     <span>Manage Campaign</span>
                 </a>
 
                 <a href="/votechain/candidate/filing.php" class="<?php echo $activePage === 'filing' ? $activeLinkClass : $inactiveLinkClass; ?>">
-                    <i class="fa-solid fa-file-check w-5"></i>
+                    <i class="fa-solid fa-clipboard-check w-5"></i>
                     <span>Filing Status</span>
                 </a>
 
@@ -154,6 +175,7 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
 <script>
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const sidebar = document.getElementById('sidebar');
+    const adminCandidateAppsBadge = document.getElementById('adminCandidateAppsBadge');
 
     mobileMenuBtn?.addEventListener('click', () => {
         sidebar.classList.toggle('-translate-x-full');
@@ -164,4 +186,32 @@ $inactiveLinkClass = 'flex items-center gap-3 px-4 py-3.5 rounded-xl text-white/
             sidebar?.classList.add('-translate-x-full');
         }
     });
+
+    async function refreshAdminCandidateAppsBadge() {
+        if (!adminCandidateAppsBadge) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/votechain/admin/dashboard.php?live_stats=1', {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const stats = await response.json();
+            const pendingCount = Number.parseInt(stats.pending_review ?? stats.pending ?? 0, 10);
+
+            if (Number.isFinite(pendingCount)) {
+                adminCandidateAppsBadge.textContent = String(pendingCount);
+            }
+        } catch (error) {
+            // Ignore transient refresh failures.
+        }
+    }
+
+    refreshAdminCandidateAppsBadge();
+    setInterval(refreshAdminCandidateAppsBadge, 15000);
 </script>

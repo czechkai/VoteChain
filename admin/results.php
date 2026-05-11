@@ -372,7 +372,6 @@ $pageTitle = 'Live Results';
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-xl font-black text-navy">Blockchain Ledger (Admin)</h3>
                     <div class="flex items-center gap-3">
-                        <a href="?election_id=<?php echo urlencode($election_id); ?>&export=csv" class="text-xs font-bold bg-slate-100 text-navy px-3 py-2 rounded-md hover:bg-slate-200">Export CSV</a>
                         <button id="verifyChainBtn" class="text-xs font-bold text-royal flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 hover:bg-blue-100">
                             <i class="fa-solid fa-shield-check"></i> Verify Chain
                         </button>

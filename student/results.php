@@ -57,7 +57,8 @@ if ($election_id) {
                 v.created_at,
                 p.first_name as candidate_first,
                 p.last_name as candidate_last,
-                pos.name as position_title
+                pos.name as position_title,
+                COALESCE(c.image_url, c.profile_photo, '') as candidate_image
             FROM votes v
             JOIN candidates c ON v.candidate_id = c.id
             JOIN profiles p ON c.profile_id = p.id
@@ -218,8 +219,12 @@ if ($results) {
                                     <div class="relative mb-6">
                                         <div class="flex items-center justify-between mb-2">
                                             <div class="flex items-center gap-4">
-                                                <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black" style="background-color: <?php echo $rankBgColor; ?>20; color: <?php echo $rankTextColor; ?>">
-                                                    #<?php echo $rank; ?>
+                                                <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black flex-shrink-0 overflow-hidden bg-gradient-to-br from-blue-400 to-navy text-white" style="background-color: <?php echo $rankBgColor; ?>20; color: <?php echo $rankTextColor; ?>">
+                                                    <?php if (!empty($candidate['image_url'])): ?>
+                                                        <img src="<?php echo htmlspecialchars((string) ('../' . $candidate['image_url'] ?? '')); ?>" alt="<?php echo htmlspecialchars($candidate['first_name'] . ' ' . $candidate['last_name']); ?>" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        #<?php echo $rank; ?>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div>
                                                     <h5 class="font-bold text-navy">

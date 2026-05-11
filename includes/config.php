@@ -79,6 +79,20 @@ function sanitize($data) {
 }
 
 /**
+ * Build candidate initials from first and last name.
+ */
+function getCandidateInitials($firstName, $lastName, $fallback = 'U') {
+    $first = strtoupper(substr(trim((string) $firstName), 0, 1));
+    $last = strtoupper(substr(trim((string) $lastName), 0, 1));
+
+    if ($first === '' && $last === '') {
+        return strtoupper(substr(trim((string) $fallback), 0, 2) ?: 'U');
+    }
+
+    return $first . ($last !== '' ? $last : '');
+}
+
+/**
  * Check if user is logged in
  */
 function isLoggedIn() {
@@ -299,7 +313,8 @@ function getCandidates($pdo, $election_id, $position_id = null) {
     try {
         if ($position_id) {
             $stmt = $pdo->prepare("
-                SELECT c.*, p.first_name, p.last_name, pos.name as position_title
+                SELECT c.*, p.first_name, p.last_name, pos.name as position_title,
+                       COALESCE(c.image_url, c.profile_photo, '') as image_url
                 FROM candidates c
                 JOIN profiles p ON c.profile_id = p.id
                 JOIN positions pos ON c.position_id = pos.id
@@ -309,7 +324,8 @@ function getCandidates($pdo, $election_id, $position_id = null) {
             $stmt->execute([$election_id, $position_id]);
         } else {
             $stmt = $pdo->prepare("
-                SELECT c.*, p.first_name, p.last_name, pos.name as position_title
+                SELECT c.*, p.first_name, p.last_name, pos.name as position_title,
+                       COALESCE(c.image_url, c.profile_photo, '') as image_url
                 FROM candidates c
                 JOIN profiles p ON c.profile_id = p.id
                 JOIN positions pos ON c.position_id = pos.id

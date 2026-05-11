@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     election_id UUID NOT NULL REFERENCES elections(id) ON DELETE CASCADE,
     campaign_description TEXT,
     platform_image_url VARCHAR(500),
+    image_url VARCHAR(500), -- Candidate profile photo URL
     filing_status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
     vote_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT now(),
