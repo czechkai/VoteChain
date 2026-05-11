@@ -2,11 +2,16 @@
 require_once __DIR__ . '/../includes/config.php';
 requireRole('admin');
 
+$database = $pdo;
+if (!$database instanceof PDO) {
+    die('Database connection failed');
+}
+
 $activePage = 'admin_results';
 
 // Fetch elections
 try {
-    $stmt = $pdo->prepare("SELECT * FROM elections ORDER BY starts_at DESC");
+    $stmt = $database->prepare("SELECT * FROM elections ORDER BY starts_at DESC");
     $stmt->execute();
     $elections = $stmt->fetchAll();
 } catch (Exception $e) {
@@ -17,7 +22,7 @@ try {
 $election_id = $_GET['election_id'] ?? null;
 if (!$election_id) {
     try {
-        $stmt = $pdo->prepare("SELECT id FROM elections WHERE status IN ('active','completed') ORDER BY starts_at DESC LIMIT 1");
+        $stmt = $database->prepare("SELECT id FROM elections WHERE status IN ('active','completed') ORDER BY starts_at DESC LIMIT 1");
         $stmt->execute();
         $row = $stmt->fetch();
         $election_id = $row['id'] ?? null;
@@ -30,7 +35,7 @@ if (!$election_id) {
 $ledger = [];
 if ($election_id) {
     try {
-        $stmt = $pdo->prepare(
+        $stmt = $database->prepare(
             "SELECT v.id, v.election_id, v.voter_profile_id, v.position_id, v.candidate_id, v.tx_hash, v.prev_hash, v.created_at,
                     p.first_name AS candidate_first, p.last_name AS candidate_last, pos.name AS position_title
              FROM votes v

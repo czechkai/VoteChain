@@ -314,7 +314,7 @@ function getCandidates($pdo, $election_id, $position_id = null) {
         if ($position_id) {
             $stmt = $pdo->prepare("
                 SELECT c.*, p.first_name, p.last_name, pos.name as position_title,
-                       COALESCE(c.image_url, c.profile_photo, '') as image_url
+                       COALESCE(c.image_url, '') as image_url
                 FROM candidates c
                 JOIN profiles p ON c.profile_id = p.id
                 JOIN positions pos ON c.position_id = pos.id
@@ -325,7 +325,7 @@ function getCandidates($pdo, $election_id, $position_id = null) {
         } else {
             $stmt = $pdo->prepare("
                 SELECT c.*, p.first_name, p.last_name, pos.name as position_title,
-                       COALESCE(c.image_url, c.profile_photo, '') as image_url
+                       COALESCE(c.image_url, '') as image_url
                 FROM candidates c
                 JOIN profiles p ON c.profile_id = p.id
                 JOIN positions pos ON c.position_id = pos.id

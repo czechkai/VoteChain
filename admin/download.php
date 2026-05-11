@@ -6,6 +6,12 @@
 
 require_once '../includes/config.php';
 
+$database = $pdo;
+if (!$database instanceof PDO) {
+    http_response_code(500);
+    exit('Database connection failed');
+}
+
 // Check if user is logged in
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -71,13 +77,12 @@ if ($role === 'candidate') {
 
     // Verify the candidate belongs to this user
     try {
-        $checkTable = function($table, $column) use ($pdo, $profileId, $candidateId) {
-            if (!$pdo) return false;
-            $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = CURRENT_SCHEMA() AND table_name = ? LIMIT 1");
+        $checkTable = function($table, $column) use ($database, $profileId, $candidateId) {
+            $stmt = $database->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = CURRENT_SCHEMA() AND table_name = ? LIMIT 1");
             $stmt->execute([$table]);
             if ($stmt->fetchColumn() === false) return false;
 
-            $verifyStmt = $pdo->prepare("SELECT 1 FROM {$table} WHERE id = ? AND {$column} = ? LIMIT 1");
+            $verifyStmt = $database->prepare("SELECT 1 FROM {$table} WHERE id = ? AND {$column} = ? LIMIT 1");
             $verifyStmt->execute([$candidateId, $profileId]);
             return $verifyStmt->fetchColumn() !== false;
         };

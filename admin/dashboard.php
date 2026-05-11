@@ -83,6 +83,14 @@ if ($pdo) {
                 $selectParts[] = "'pending' AS status";
             }
 
+            if (in_array('image_url', $candidateTableColumns, true)) {
+                $selectParts[] = 'c.image_url';
+            } elseif (in_array('profile_photo', $candidateTableColumns, true)) {
+                $selectParts[] = 'c.profile_photo AS image_url';
+            } else {
+                $selectParts[] = "'' AS image_url";
+            }
+
             if (in_array('election_id', $candidateTableColumns, true)) {
                 $selectParts[] = 'c.election_id';
             }
@@ -262,6 +270,7 @@ if (isset($_GET['live_stats']) && $pdo) {
                                             $candidateId = (string) ($candidate['id'] ?? '');
                                             $documentCount = isset($dashboardCandidateDocuments[$candidateId]) ? count($dashboardCandidateDocuments[$candidateId]) : 0;
                                             $documentCount = min($documentCount, 5);
+                                            $candidateImageUrl = trim((string) ($candidate['image_url'] ?? ''));
 
                                         if ($status === 'approved') {
                                             $statusLabel = 'Approved';
@@ -287,7 +296,13 @@ if (isset($_GET['live_stats']) && $pdo) {
                                     <tr data-admin-search-item class="border-b border-slate-100 hover:bg-slate-50 transition">
                                         <td class="px-6 py-5">
                                             <div class="flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold"><?php echo htmlspecialchars($initials); ?></div>
+                                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold overflow-hidden flex items-center justify-center flex-shrink-0">
+                                                    <?php if ($candidateImageUrl !== ''): ?>
+                                                        <img src="<?php echo htmlspecialchars('../' . ltrim($candidateImageUrl, '/')); ?>" alt="<?php echo htmlspecialchars($fullName); ?>" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <?php echo htmlspecialchars($initials); ?>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <div>
                                                     <p class="font-bold text-navy"><?php echo htmlspecialchars($fullName); ?></p>
                                                     <p class="text-xs text-slate-500"><?php echo htmlspecialchars(trim($programCode . ($yearLevel !== '' ? ' - ' . $yearLevel : ''))); ?></p>

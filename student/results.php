@@ -4,13 +4,18 @@ requireRole('student');
 $role = 'student';
 $activePage = 'results';
 
+$database = $pdo;
+if (!$database instanceof PDO) {
+    die('Database connection failed');
+}
+
 // Get election ID from query or use most recent
 $election_id = $_GET['election_id'] ?? null;
 
 // If no election_id provided, get the most recent active or completed election
 if (!$election_id) {
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $database->prepare("
             SELECT id FROM elections 
             WHERE status IN ('active', 'completed')
             ORDER BY starts_at DESC 
@@ -32,20 +37,20 @@ $ledger = [];
 
 if ($election_id) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM elections WHERE id = ?");
+        $stmt = $database->prepare("SELECT * FROM elections WHERE id = ?");
         $stmt->execute([$election_id]);
         $election = $stmt->fetch();
         
         // Get results grouped by position
-        $results = getElectionResults($pdo, $election_id);
+        $results = getElectionResults($database, $election_id);
         
         // Calculate total votes
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM votes WHERE election_id = ?");
+        $stmt = $database->prepare("SELECT COUNT(*) FROM votes WHERE election_id = ?");
         $stmt->execute([$election_id]);
         $totalVotes = $stmt->fetchColumn();
         
         // Get all votes for blockchain ledger with candidate details
-        $stmt = $pdo->prepare("
+        $stmt = $database->prepare("
             SELECT 
                 v.id,
                 v.election_id,
@@ -58,7 +63,7 @@ if ($election_id) {
                 p.first_name as candidate_first,
                 p.last_name as candidate_last,
                 pos.name as position_title,
-                COALESCE(c.image_url, c.profile_photo, '') as candidate_image
+                COALESCE(c.image_url, '') as image_url
             FROM votes v
             JOIN candidates c ON v.candidate_id = c.id
             JOIN profiles p ON c.profile_id = p.id
@@ -221,7 +226,7 @@ if ($results) {
                                             <div class="flex items-center gap-4">
                                                 <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black flex-shrink-0 overflow-hidden bg-gradient-to-br from-blue-400 to-navy text-white" style="background-color: <?php echo $rankBgColor; ?>20; color: <?php echo $rankTextColor; ?>">
                                                     <?php if (!empty($candidate['image_url'])): ?>
-                                                        <img src="<?php echo htmlspecialchars((string) ('../' . $candidate['image_url'] ?? '')); ?>" alt="<?php echo htmlspecialchars($candidate['first_name'] . ' ' . $candidate['last_name']); ?>" class="w-full h-full object-cover">
+                                                                        <img src="<?php echo htmlspecialchars((string) ('../' . ltrim((string) $candidate['image_url'], '/'))); ?>" alt="<?php echo htmlspecialchars($candidate['first_name'] . ' ' . $candidate['last_name']); ?>" class="w-full h-full object-cover">
                                                     <?php else: ?>
                                                         #<?php echo $rank; ?>
                                                     <?php endif; ?>
