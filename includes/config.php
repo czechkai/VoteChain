@@ -100,6 +100,30 @@ function isLoggedIn() {
 }
 
 /**
+ * Promote an approved candidate to candidate role in the current session.
+ */
+function syncApprovedCandidateSession($pdo) {
+    if (!isLoggedIn() || !$pdo) {
+        return false;
+    }
+
+    $currentRole = $_SESSION['role'] ?? 'student';
+    if ($currentRole === 'admin' || $currentRole === 'candidate') {
+        return false;
+    }
+
+    $profileId = $_SESSION['profile_id'] ?? null;
+    if (!$profileId || !hasApprovedCandidateAccess($pdo, $profileId)) {
+        return false;
+    }
+
+    $_SESSION['role'] = 'candidate';
+    $_SESSION['candidate_application_mode'] = 0;
+
+    return true;
+}
+
+/**
  * Require login and specific role(s)
  */
 function requireRole($roles) {
@@ -110,6 +134,11 @@ function requireRole($roles) {
 
     $allowed = is_array($roles) ? $roles : [$roles];
     $currentRole = $_SESSION['role'] ?? null;
+
+    if (in_array('candidate', $allowed, true)) {
+        syncApprovedCandidateSession($GLOBALS['pdo'] ?? null);
+        $currentRole = $_SESSION['role'] ?? null;
+    }
 
     if (!$currentRole || !in_array($currentRole, $allowed, true)) {
         header('Location: ../auth/login.php');
@@ -167,6 +196,11 @@ function requireCandidateFilingAccess($pdo) {
     $currentRole = $_SESSION['role'] ?? 'student';
     if ($currentRole === 'candidate' || $currentRole === 'admin') {
         return;
+    }
+
+    if (syncApprovedCandidateSession($pdo)) {
+        header('Location: ../candidate/dashboard.php');
+        exit;
     }
 
     if (!empty($_SESSION['candidate_application_mode'])) {

@@ -19,6 +19,7 @@ $dashboardStats = [
 ];
 
 $dashboardCandidates = [];
+$dashboardCandidatesByElection = [];
 $dashboardCandidateDocuments = [];
 
 function dashboardTableExists($pdo, $tableName) {
@@ -62,6 +63,7 @@ $candidateIdColumn = in_array('profile_id', $candidateTableColumns, true)
 $profilesTableExists = dashboardTableExists($pdo, 'profiles');
 $usersTableExists = dashboardTableExists($pdo, 'users');
 $positionsTableExists = dashboardTableExists($pdo, 'positions');
+$electionsTableExists = dashboardTableExists($pdo, 'elections');
 $candidateDocumentsTableExists = dashboardTableExists($pdo, 'candidate_documents') || dashboardTableExists($pdo, 'candidacy_filings');
 
 if ($pdo) {
@@ -106,6 +108,18 @@ if ($pdo) {
             }
 
             $joinSql = '';
+
+            if ($electionsTableExists && in_array('election_id', $candidateTableColumns, true)) {
+                $electionColumns = dashboardTableColumns($pdo, 'elections');
+                $electionTitleColumn = in_array('title', $electionColumns, true)
+                    ? 'title'
+                    : (in_array('name', $electionColumns, true) ? 'name' : null);
+
+                if ($electionTitleColumn) {
+                    $selectParts[] = 'e.' . $electionTitleColumn . ' AS election_title';
+                    $joinSql .= ' LEFT JOIN elections e ON e.id = c.election_id';
+                }
+            }
             if ($candidateIdColumn === 'profile_id' && $profilesTableExists) {
                 $selectParts[] = 'p.first_name';
                 $selectParts[] = 'p.last_name';
@@ -128,6 +142,28 @@ if ($pdo) {
 
             $candidateStmt = $pdo->query('SELECT ' . implode(', ', $selectParts) . ' FROM candidates c' . $joinSql . ' ORDER BY c.created_at DESC');
             $dashboardCandidates = $candidateStmt->fetchAll();
+
+            foreach ($dashboardCandidates as $dashboardCandidate) {
+                $electionKey = trim((string) ($dashboardCandidate['election_title'] ?? 'Unassigned Election'));
+                if ($electionKey === '') {
+                    $electionKey = 'Unassigned Election';
+                }
+
+                $positionKey = trim((string) ($dashboardCandidate['position_name'] ?? 'Unassigned Position'));
+                if ($positionKey === '') {
+                    $positionKey = 'Unassigned Position';
+                }
+
+                if (!isset($dashboardCandidatesByElection[$electionKey])) {
+                    $dashboardCandidatesByElection[$electionKey] = [];
+                }
+
+                if (!isset($dashboardCandidatesByElection[$electionKey][$positionKey])) {
+                    $dashboardCandidatesByElection[$electionKey][$positionKey] = [];
+                }
+
+                $dashboardCandidatesByElection[$electionKey][$positionKey][] = $dashboardCandidate;
+            }
 
             if ($candidateDocumentsTableExists && !empty($dashboardCandidates)) {
                 $candidateIds = array_values(array_filter(array_column($dashboardCandidates, 'id')));
@@ -242,116 +278,121 @@ if (isset($_GET['live_stats']) && $pdo) {
                 </div>
             </div>
 
-            <!-- Candidate Filings Table -->
+            <!-- Candidate Filings by Election and Position -->
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-8 border-b border-slate-100 flex justify-between items-center">
-                    <h3 class="text-2xl font-black text-navy">Candidate Filing Status</h3>
-                    <input id="dashboardCandidateSearch" type="text" placeholder="Search candidates..." class="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-gold">
+                <div class="p-8 border-b border-slate-100 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 class="text-2xl font-black text-navy">Candidate Filing Status</h3>
+                        <p class="text-sm text-slate-500 mt-1">Grouped by election first, then by position.</p>
+                    </div>
+                    <input id="dashboardCandidateSearch" type="text" placeholder="Search candidates or positions..." class="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-gold md:w-80">
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b border-slate-100 bg-slate-50">
-                                <th class="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase">Candidate</th>
-                                <th class="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase">Position</th>
-                                <th class="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase">Documents</th>
-                                <th class="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase">Progress</th>
-                                <th class="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase">Status</th>
-                                <th class="px-6 py-4 text-center text-xs font-black text-slate-600 uppercase">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($dashboardCandidates)): ?>
-                                <?php foreach ($dashboardCandidates as $candidate): ?>
-                                    <?php
-                                        $firstName = trim((string) ($candidate['first_name'] ?? ''));
-                                        $lastName = trim((string) ($candidate['last_name'] ?? ''));
-                                        $fullName = trim($firstName . ' ' . $lastName) ?: 'Unknown Candidate';
-                                        $initials = getCandidateInitials($firstName, $lastName, 'UC');
-                                        $programCode = strtoupper((string) ($candidate['program_code'] ?? ''));
-                                        $yearLevel = (string) ($candidate['year_level'] ?? '');
-                                        $positionName = (string) ($candidate['position_name'] ?? 'Unassigned');
-                                        $status = strtolower((string) ($candidate['status'] ?? 'pending'));
-                                            $candidateId = (string) ($candidate['id'] ?? '');
-                                            $documentCount = isset($dashboardCandidateDocuments[$candidateId]) ? count($dashboardCandidateDocuments[$candidateId]) : 0;
-                                            $documentCount = min($documentCount, 5);
-                                            $candidateImageUrl = trim((string) ($candidate['image_url'] ?? ''));
+                <div class="p-8 space-y-8">
+                    <?php if (!empty($dashboardCandidatesByElection)): ?>
+                        <?php foreach ($dashboardCandidatesByElection as $electionTitle => $positionsByElection): ?>
+                            <section class="candidate-election-group rounded-[2.25rem] border border-slate-100 bg-white p-5 md:p-6 shadow-sm" data-election="<?php echo htmlspecialchars(strtolower($electionTitle)); ?>">
+                                <div class="flex flex-wrap items-center justify-between gap-3 mb-6 border-b border-slate-100 pb-4">
+                                    <div>
+                                        <h4 class="text-2xl font-black text-navy"><?php echo htmlspecialchars($electionTitle); ?></h4>
+                                        <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Election filing group</p>
+                                    </div>
+                                    <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200">
+                                        <?php echo count($positionsByElection); ?> position<?php echo count($positionsByElection) === 1 ? '' : 's'; ?>
+                                    </span>
+                                </div>
 
-                                        if ($status === 'approved') {
-                                            $statusLabel = 'Approved';
-                                            $statusClass = 'text-emerald-600 bg-emerald-50 border-emerald-100';
-                                            $progressWidth = '100%';
-                                            $progressLabel = '5/5';
-                                            $documentStates = ['emerald', 'emerald', 'emerald', 'emerald', 'emerald'];
-                                        } elseif ($status === 'rejected') {
-                                            $statusLabel = 'Rejected';
-                                            $statusClass = 'text-rose-600 bg-rose-50 border-rose-100';
-                                            $progressWidth = '0%';
-                                            $progressLabel = '0/5';
-                                            $documentStates = ['slate', 'slate', 'slate', 'slate', 'slate'];
-                                        } else {
-                                            $statusLabel = 'Pending';
-                                            $statusClass = 'text-amber-600 bg-amber-50 border-amber-100';
-                                                $progressPercent = (int) round(($documentCount / 5) * 100);
-                                                $progressWidth = max(0, min(100, $progressPercent)) . '%';
-                                                $progressLabel = $documentCount . '/5';
-                                                $documentStates = array_merge(array_fill(0, $documentCount, 'emerald'), array_fill(0, 5 - $documentCount, 'slate'));
-                                        }
-                                    ?>
-                                    <tr data-admin-search-item class="border-b border-slate-100 hover:bg-slate-50 transition">
-                                        <td class="px-6 py-5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold overflow-hidden flex items-center justify-center flex-shrink-0">
-                                                    <?php if ($candidateImageUrl !== ''): ?>
-                                                        <img src="<?php echo htmlspecialchars('../' . ltrim($candidateImageUrl, '/')); ?>" alt="<?php echo htmlspecialchars($fullName); ?>" class="w-full h-full object-cover">
-                                                    <?php else: ?>
-                                                        <?php echo htmlspecialchars($initials); ?>
-                                                    <?php endif; ?>
-                                                </div>
+                                <div class="space-y-6">
+                                    <?php foreach ($positionsByElection as $positionName => $positionCandidates): ?>
+                                        <section class="candidate-position-group rounded-[1.75rem] border border-slate-100 bg-slate-50/40 p-4 md:p-5" data-position="<?php echo htmlspecialchars(strtolower($positionName)); ?>" data-election="<?php echo htmlspecialchars(strtolower($electionTitle)); ?>">
+                                            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                                                 <div>
-                                                    <p class="font-bold text-navy"><?php echo htmlspecialchars($fullName); ?></p>
-                                                    <p class="text-xs text-slate-500"><?php echo htmlspecialchars(trim($programCode . ($yearLevel !== '' ? ' - ' . $yearLevel : ''))); ?></p>
+                                                    <h5 class="text-xl font-black text-navy"><?php echo htmlspecialchars($positionName); ?></h5>
+                                                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400"><?php echo count($positionCandidates); ?> candidate<?php echo count($positionCandidates) === 1 ? '' : 's'; ?> filed</p>
                                                 </div>
+                                                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white text-slate-500 border border-slate-200">Position Group</span>
                                             </div>
-                                        </td>
-                                        <td class="px-6 py-5">
-                                            <span class="text-sm font-bold text-slate-600"><?php echo htmlspecialchars($positionName); ?></span>
-                                        </td>
-                                        <td class="px-6 py-5">
-                                            <div class="flex gap-1">
-                                                <?php foreach ($documentStates as $documentState): ?>
-                                                    <?php if ($documentState === 'emerald'): ?>
-                                                        <div class="w-6 h-6 bg-emerald-500 rounded text-[10px] flex items-center justify-center text-white"><i class="fa-solid fa-check"></i></div>
-                                                    <?php else: ?>
-                                                        <div class="w-6 h-6 bg-slate-300 rounded text-[10px] flex items-center justify-center text-white"><i class="fa-solid fa-times"></i></div>
-                                                    <?php endif; ?>
+
+                                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                <?php foreach ($positionCandidates as $candidate): ?>
+                                                    <?php
+                                                        $firstName = trim((string) ($candidate['first_name'] ?? ''));
+                                                        $lastName = trim((string) ($candidate['last_name'] ?? ''));
+                                                        $fullName = trim($firstName . ' ' . $lastName) ?: 'Unknown Candidate';
+                                                        $initials = getCandidateInitials($firstName, $lastName, 'UC');
+                                                        $programCode = strtoupper((string) ($candidate['program_code'] ?? ''));
+                                                        $yearLevel = (string) ($candidate['year_level'] ?? '');
+                                                        $status = strtolower((string) ($candidate['status'] ?? 'pending'));
+                                                        $candidateId = (string) ($candidate['id'] ?? '');
+                                                        $documentCount = isset($dashboardCandidateDocuments[$candidateId]) ? count($dashboardCandidateDocuments[$candidateId]) : 0;
+                                                        $documentCount = min($documentCount, 5);
+                                                        $candidateImageUrl = trim((string) ($candidate['image_url'] ?? ''));
+
+                                                        if ($status === 'approved') {
+                                                            $statusLabel = 'Approved';
+                                                            $statusClass = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+                                                            $progressWidth = '100%';
+                                                            $progressLabel = '5/5';
+                                                        } elseif ($status === 'rejected') {
+                                                            $statusLabel = 'Rejected';
+                                                            $statusClass = 'text-rose-600 bg-rose-50 border-rose-100';
+                                                            $progressWidth = '0%';
+                                                            $progressLabel = '0/5';
+                                                        } else {
+                                                            $statusLabel = 'Pending';
+                                                            $statusClass = 'text-amber-600 bg-amber-50 border-amber-100';
+                                                            $progressPercent = (int) round(($documentCount / 5) * 100);
+                                                            $progressWidth = max(0, min(100, $progressPercent)) . '%';
+                                                            $progressLabel = $documentCount . '/5';
+                                                        }
+                                                    ?>
+                                                    <div data-admin-search-item class="bg-white rounded-[1.75rem] border border-slate-100 p-5 shadow-sm hover:border-slate-200 transition candidate-card" data-status="<?php echo htmlspecialchars($status); ?>" data-position="<?php echo htmlspecialchars(strtolower($positionName)); ?>" data-election="<?php echo htmlspecialchars(strtolower($electionTitle)); ?>">
+                                                        <div class="flex items-start justify-between gap-4 mb-4">
+                                                            <div class="flex items-center gap-3 min-w-0">
+                                                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold overflow-hidden flex items-center justify-center flex-shrink-0">
+                                                                    <?php if ($candidateImageUrl !== ''): ?>
+                                                                        <img src="<?php echo htmlspecialchars('../' . ltrim($candidateImageUrl, '/')); ?>" alt="<?php echo htmlspecialchars($fullName); ?>" class="w-full h-full object-cover">
+                                                                    <?php else: ?>
+                                                                        <?php echo htmlspecialchars($initials); ?>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                                <div class="min-w-0">
+                                                                    <p class="font-bold text-navy truncate"><?php echo htmlspecialchars($fullName); ?></p>
+                                                                    <p class="text-xs text-slate-500 truncate"><?php echo htmlspecialchars(trim($programCode . ($yearLevel !== '' ? ' - ' . $yearLevel : ''))); ?></p>
+                                                                </div>
+                                                            </div>
+                                                            <span class="text-[10px] font-black px-3 py-1.5 rounded-lg uppercase border <?php echo htmlspecialchars($statusClass); ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
+                                                        </div>
+
+                                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mb-4">
+                                                            <div class="rounded-xl bg-slate-50 p-3">
+                                                                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Election</p>
+                                                                <p class="font-bold text-slate-700"><?php echo htmlspecialchars($electionTitle); ?></p>
+                                                            </div>
+                                                            <div class="rounded-xl bg-slate-50 p-3">
+                                                                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Documents</p>
+                                                                <p class="font-bold text-slate-700"><?php echo htmlspecialchars((string) $documentCount); ?> / 5</p>
+                                                            </div>
+                                                            <div class="rounded-xl bg-slate-50 p-3">
+                                                                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Progress</p>
+                                                                <p class="font-bold text-slate-700"><?php echo htmlspecialchars($progressLabel); ?></p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                            <div class="bg-gradient-to-r from-royal to-gold h-full" style="width: <?php echo htmlspecialchars($progressWidth); ?>"></div>
+                                                        </div>
+                                                    </div>
                                                 <?php endforeach; ?>
                                             </div>
-                                        </td>
-                                        <td class="px-6 py-5">
-                                            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                <div class="bg-gradient-to-r from-royal to-gold h-full" style="width: <?php echo htmlspecialchars($progressWidth); ?>"></div>
-                                            </div>
-                                            <p class="text-xs text-slate-500 mt-1"><?php echo htmlspecialchars($progressLabel); ?></p>
-                                        </td>
-                                        <td class="px-6 py-5">
-                                            <span class="text-xs font-black px-3 py-1.5 rounded-lg uppercase border <?php echo htmlspecialchars($statusClass); ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
-                                        </td>
-                                        <td class="px-6 py-5 text-center">
-                                            <button class="w-10 h-10 rounded-xl bg-slate-50 text-navy hover:bg-blue-50 hover:text-blue-600 transition">
-                                                <i class="fa-solid fa-eye"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr class="border-b border-slate-100">
-                                    <td colspan="6" class="px-6 py-10 text-center text-slate-500">No candidates found.</td>
-                                </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                                        </section>
+                                    <?php endforeach; ?>
+                                </div>
+                            </section>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="text-center py-12 text-slate-500">No candidates found.</div>
+                    <?php endif; ?>
                 </div>
             </div>
         </main>
@@ -360,7 +401,9 @@ if (isset($_GET['live_stats']) && $pdo) {
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('dashboardCandidateSearch');
-            const searchRows = document.querySelectorAll('tr[data-admin-search-item]');
+            const searchRows = document.querySelectorAll('[data-admin-search-item]');
+            const positionGroups = document.querySelectorAll('.candidate-position-group');
+            const electionGroups = document.querySelectorAll('.candidate-election-group');
 
             if (!searchInput || !searchRows.length) {
                 return;
@@ -372,6 +415,16 @@ if (isset($_GET['live_stats']) && $pdo) {
                 searchRows.forEach((row) => {
                     const rowText = row.textContent.toLowerCase();
                     row.style.display = !query || rowText.includes(query) ? '' : 'none';
+                });
+
+                positionGroups.forEach((group) => {
+                    const visibleCards = group.querySelectorAll('[data-admin-search-item]:not([style*="display: none"])');
+                    group.style.display = visibleCards.length > 0 ? '' : 'none';
+                });
+
+                electionGroups.forEach((group) => {
+                    const visiblePositionGroups = group.querySelectorAll('.candidate-position-group:not([style*="display: none"])');
+                    group.style.display = visiblePositionGroups.length > 0 ? '' : 'none';
                 });
             });
 

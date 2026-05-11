@@ -73,6 +73,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['candidate_action'], $
 
                 $updateStmt = $pdo->prepare('UPDATE candidates SET ' . implode(', ', $setParts) . ' WHERE id = ?');
                 $updateStmt->execute(array_merge([$nextStatus], [$candidateId]));
+
+                if ($nextStatus === 'approved' && $candidateIdColumn) {
+                    $candidateRoleTable = null;
+                    if ($candidateIdColumn === 'profile_id' && $profilesTableExists) {
+                        $candidateRoleTable = 'profiles';
+                    } elseif ($candidateIdColumn === 'user_id' && $usersTableExists) {
+                        $candidateRoleTable = 'users';
+                    }
+
+                    if ($candidateRoleTable) {
+                        $roleStmt = $pdo->prepare("UPDATE {$candidateRoleTable} SET role = 'candidate' WHERE id = ?");
+                        $roleStmt->execute([$candidateId]);
+                    }
+                }
+
                 header('Location: candidate.php?updated=' . urlencode($nextStatus));
                 exit;
             } catch (Throwable $e) {

@@ -381,7 +381,64 @@ if (isset($_GET['success'])) {
         </div>
     </main>
 
+    <!-- Notification Window -->
+    <div id="notificationWindow" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
+            <div class="flex items-start justify-between gap-4 mb-3">
+                <h3 id="notificationTitle" class="text-lg font-black text-navy">Notice</h3>
+                <button id="notificationCloseBtn" type="button" class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition" aria-label="Close notification">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p id="notificationMessage" class="text-sm text-slate-600 leading-relaxed"></p>
+            <div class="mt-5 text-right">
+                <button id="notificationOkBtn" type="button" class="px-5 py-2.5 bg-navy text-white rounded-xl font-bold hover:bg-royal transition">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showNotificationWindow(title, message) {
+            const modal = document.getElementById('notificationWindow');
+            const titleEl = document.getElementById('notificationTitle');
+            const messageEl = document.getElementById('notificationMessage');
+
+            if (!modal || !titleEl || !messageEl) {
+                return;
+            }
+
+            titleEl.textContent = title;
+            messageEl.innerHTML = escapeHtml(message).replace(/\n/g, '<br>');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeNotificationWindow() {
+            const modal = document.getElementById('notificationWindow');
+            if (!modal) {
+                return;
+            }
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        document.getElementById('notificationCloseBtn')?.addEventListener('click', closeNotificationWindow);
+        document.getElementById('notificationOkBtn')?.addEventListener('click', closeNotificationWindow);
+        document.getElementById('notificationWindow')?.addEventListener('click', function (event) {
+            if (event.target === this) {
+                closeNotificationWindow();
+            }
+        });
+
         function handleFileUpload(input, docType) {
             const file = input.files[0];
             if (!file) return;
@@ -428,13 +485,13 @@ if (isset($_GET['success'])) {
             
             if (!electionId) {
                 e.preventDefault();
-                alert('Please select an Election');
+                showNotificationWindow('Incomplete Filing', 'Please select an Election.');
                 return;
             }
             
             if (!positionId) {
                 e.preventDefault();
-                alert('Please select a Position');
+                showNotificationWindow('Incomplete Filing', 'Please select a Position.');
                 return;
             }
             
@@ -453,7 +510,10 @@ if (isset($_GET['success'])) {
 
             if (uploaded !== 5) {
                 e.preventDefault();
-                alert('All 5 documents are required:\n\n' + missing.join('\n') + '\n\nPlease upload all required documents before submitting.');
+                showNotificationWindow(
+                    'Missing Required Documents',
+                    'All 5 documents are required:\n\n' + missing.join('\n') + '\n\nPlease upload all required documents before submitting.'
+                );
                 return;
             }
 

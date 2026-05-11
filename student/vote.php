@@ -3,6 +3,31 @@ require_once '../includes/config.php';
 requireRole('student');
 $role = 'student';
 $activePage = 'vote';
+
+$allElections = [];
+$startColumn = 'starts_at';
+$endColumn = 'ends_at';
+
+if ($pdo) {
+    try {
+        $colStmt = $pdo->prepare(
+            "SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'elections'"
+        );
+        $colStmt->execute();
+        $electionColumns = array_map('strtolower', $colStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        $startColumn = in_array('starts_at', $electionColumns, true) ? 'starts_at' : (in_array('start_date', $electionColumns, true) ? 'start_date' : 'created_at');
+        $endColumn = in_array('ends_at', $electionColumns, true) ? 'ends_at' : (in_array('end_date', $electionColumns, true) ? 'end_date' : 'created_at');
+
+        $stmt = $pdo->query("SELECT * FROM elections ORDER BY {$startColumn} DESC, created_at DESC");
+        $allElections = $stmt->fetchAll();
+    } catch (Exception $e) {
+        error_log('Error fetching elections for student vote page: ' . $e->getMessage());
+        $allElections = [];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,24 +68,39 @@ $activePage = 'vote';
     <main class="flex-1 lg:ml-72 p-4 md:p-8">
         <header class="mb-10">
             <h1 class="text-3xl font-extrabold text-navy">Election Center</h1>
-            <p class="text-slate-500 font-medium mt-1">Select an active election to cast your secure blockchain vote.</p>
+            <p class="text-slate-500 font-medium mt-1">View all elections. Voting opens only during the scheduled date range.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <?php
-            $activeElections = $pdo ? getActiveElections($pdo) : [];
-            ?>
-
-            <?php if (!$activeElections): ?>
+            <?php if (!$allElections): ?>
                 <div class="election-card p-8">
-                    <h3 class="text-lg font-extrabold text-navy mb-2">No Active Elections</h3>
+                    <h3 class="text-lg font-extrabold text-navy mb-2">No Elections Available</h3>
                     <p class="text-slate-500 text-sm">Please check back later.</p>
                 </div>
             <?php else: ?>
-                <?php foreach ($activeElections as $election): ?>
+                <?php foreach ($allElections as $election): ?>
                     <?php
                     $title = $election['title'] ?? $election['name'] ?? 'Election';
-                    $scope = $election['scope'] ?? $election['type'] ?? 'Active';
+                    $scope = $election['scope'] ?? $election['assignment'] ?? $election['type'] ?? 'Election';
+                    $status = strtolower((string)($election['status'] ?? 'scheduled'));
+
+                    $startRaw = $election[$startColumn] ?? null;
+                    $endRaw = $election[$endColumn] ?? null;
+                    $startDate = $startRaw ? new DateTime($startRaw) : null;
+                    $endDate = $endRaw ? new DateTime($endRaw) : null;
+
+                    $today = new DateTime('today');
+                    $isVotingDay = false;
+                    if ($startDate && $endDate) {
+                        $startDay = new DateTime($startDate->format('Y-m-d'));
+                        $endDay = new DateTime($endDate->format('Y-m-d'));
+                        $isVotingDay = ($today >= $startDay && $today <= $endDay);
+                    }
+
+                    $statusLabel = $isVotingDay ? 'Voting Open' : 'Coming Soon';
+                    $statusBadgeClass = $isVotingDay
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-amber-100 text-amber-700';
                     ?>
                     <div class="election-card flex flex-col">
                         <div class="p-8 flex-1">
@@ -68,7 +108,7 @@ $activePage = 'vote';
                                 <div class="w-14 h-14 bg-navy text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-navy/20">
                                     <i class="fa-solid fa-building-columns"></i>
                                 </div>
-                                <span class="status-badge bg-green-100 text-green-600">Active</span>
+                                <span class="status-badge <?php echo $statusBadgeClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
                             </div>
 
                             <h3 class="text-xl font-extrabold text-navy mb-2"><?php echo htmlspecialchars($title); ?></h3>
@@ -76,6 +116,13 @@ $activePage = 'vote';
                                 <?php echo htmlspecialchars($scope); ?>
                             </p>
                             <div class="space-y-4 mb-8">
+                                <div class="text-xs font-semibold text-slate-500">
+                                    <?php if ($startDate && $endDate): ?>
+                                        <?php echo htmlspecialchars($startDate->format('M d, Y')); ?> - <?php echo htmlspecialchars($endDate->format('M d, Y')); ?>
+                                    <?php else: ?>
+                                        Schedule: To be announced
+                                    <?php endif; ?>
+                                </div>
                                 <div class="flex items-center gap-3 text-slate-600">
                                     <i class="fa-solid fa-shield-halved text-royal w-5"></i>
                                     <span class="text-sm font-semibold">Blockchain Verified</span>
@@ -83,10 +130,17 @@ $activePage = 'vote';
                             </div>
                         </div>
                         <div class="p-8 pt-0">
-                            <a href="ballot.php?election_id=<?php echo urlencode($election['id']); ?>" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
-                                Proceed to Ballot
-                                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                            </a>
+                            <?php if ($isVotingDay): ?>
+                                <a href="ballot.php?election_id=<?php echo urlencode($election['id']); ?>" class="w-full py-4 bg-navy text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-royal transition-all shadow-xl shadow-navy/10 group">
+                                    Proceed to Ballot
+                                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                </a>
+                            <?php else: ?>
+                                <button type="button" disabled class="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold flex items-center justify-center gap-3 cursor-not-allowed">
+                                    Coming Soon
+                                    <i class="fa-solid fa-hourglass-half"></i>
+                                </button>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
